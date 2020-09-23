@@ -49,8 +49,9 @@ void create_field(int width, int height, Coords field) {
 	create_axes(field, width, height);
 }
 
-void create_button(Coords button) {
+void create_button(Coords button, const char* text) {
 	txRectangle(button.x0, button.y0, button.x1, button.y1);
+	txDrawText(button.x0, button.y0, button.x1, button.y1, text);
 }
 
 Fields create_fields(int width, int height) {
@@ -62,21 +63,16 @@ Fields create_fields(int width, int height) {
 
 	create_field(width, height, field_r);
 
-	Coords button = { 100, height - 100, 300, height - 50 };
-
-	create_button(button);
-	txDrawText(button.x0, button.y0, button.x1, button.y1, "Bubble sort");
-
+	Coords button;
+	
+	button = { 100, height - 100, 300, height - 50 };
+	create_button(button, "Bubble sort");
 
 	button = { width - 300, height - 100, width - 100, height - 50 };
-	
-	create_button(button);
-	txDrawText(button.x0, button.y0, button.x1, button.y1, "Selection sort");
+	create_button(button, "Selection sort");
 
 	button = { 350, height - 100, 450, height - 50 };
-
-	create_button(button);
-	txDrawText(button.x0, button.y0, button.x1, button.y1, "Clear");
+	create_button(button, "Clear");
 
 	Fields fields = { field_l, field_r };
 	return fields;
@@ -100,7 +96,7 @@ void plot_point(Coords line, Coords field, double scale_x, double scale_y) {
 	if (x < (field.x1 - field.x0) && y < (field.y1 - field.y0)) txCircle(x + field.x0 + 10, field.y1 - y - 10, 2);
 }
 
-double* generate_array(int size_of_array) {
+double* generate_array(size_t size_of_array) {
 	double* array = new double[size_of_array];
 
 	srand(time(0));
@@ -109,11 +105,11 @@ double* generate_array(int size_of_array) {
 	return array;
 }
 
-int get_number_of_comparisons(int size_of_array) {
+int get_number_of_comparisons(size_t size_of_array) {
 	return (size_of_array * size_of_array - size_of_array) / 2;
 }
 
-void selection_sort(double* array, int size_of_array, Fields fields, Graph gr) {
+void selection_sort(size_t size_of_array, double* array, Fields fields, Graph gr) {
 	int number_of_comparisons = get_number_of_comparisons(size_of_array), number_of_swaps = 0;
 
 	for (int start_index = 0; start_index < size_of_array - 1; start_index++) {
@@ -137,7 +133,7 @@ void selection_sort(double* array, int size_of_array, Fields fields, Graph gr) {
 
 	plot_point(gr.right, fields.field_r, 0.08, 0.00008);
 }
-void bubble_sort(int size_of_array, double* array, Fields fields, Graph gr) {
+void bubble_sort(size_t size_of_array, double* array, Fields fields, Graph gr) {
 	int number_of_comparisons = get_number_of_comparisons(size_of_array), number_of_swaps = 0;
 
 	for (int i = 0; i < size_of_array - 1; i++) {
@@ -177,7 +173,7 @@ int main() {
 		txSetColor(TX_LIGHTBLUE);
 
 		if (button == 0) {
-			for (int size_of_array = 10; size_of_array < 3000; size_of_array += 10) {
+			for (size_t size_of_array = 10; size_of_array < 3000; size_of_array += 10) {
 				double* array = generate_array(size_of_array);
 
 				bubble_sort(size_of_array, array, fields, gr);
@@ -187,10 +183,10 @@ int main() {
 		}
 
 		if (button == 1) {
-			for (int size_of_array = 10; size_of_array < 3000; size_of_array += 10) {
+			for (size_t size_of_array = 10; size_of_array < 3000; size_of_array += 10) {
 				double* array = generate_array(size_of_array);
 
-				selection_sort(array, size_of_array, fields, gr);
+				selection_sort(size_of_array, array, fields, gr);
 
 				delete[] array;
 			}
