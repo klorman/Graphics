@@ -25,7 +25,7 @@ void create_grid(Coords const field) {
 	for (int y = field.y0; y < field.y1; y += 10) txLine(field.x0, y, field.x1, y);
 }
 
-void create_axes(Coords const field, int width, int height) {
+void create_axes(const Coords field, int width, int height) {
 	create_grid(field);
 
 	txSetColor(TX_BLACK);
@@ -73,6 +73,9 @@ Fields create_fields(int width, int height) {
 
 	button = { 350, height - 100, 450, height - 50 };
 	create_button(button, "Clear");
+
+	txDrawText(20, height - 140, width / 2 - 10, height - 110, "dependence of the number of swaps\non the number of elements");
+	txDrawText(width / 2 + 10, height - 140, width - 20, height - 110, "dependence of the number of comparisons\non the number of elements");
 
 	Fields fields = { field_l, field_r };
 	return fields;
@@ -133,6 +136,7 @@ void selection_sort(size_t size_of_array, double* array, Fields fields, Graph gr
 
 	plot_point(gr.right, fields.field_r, 0.08, 0.00008);
 }
+
 void bubble_sort(size_t size_of_array, double* array, Fields fields, Graph gr) {
 	int number_of_comparisons = get_number_of_comparisons(size_of_array), number_of_swaps = 0;
 
@@ -155,8 +159,6 @@ void bubble_sort(size_t size_of_array, double* array, Fields fields, Graph gr) {
 
 	plot_point(gr.right, fields.field_r, 0.08, 0.00008);
 }
-
-
 
 int main() {
 	int width = 800, height = 600;
@@ -198,7 +200,7 @@ int main() {
 			Fields fields = create_fields(width, height);
 		}
 
-		std::cout << "Done! ";
+//		std::cout << "Done! ";
 		txSleep(1000);
 	}
 }
