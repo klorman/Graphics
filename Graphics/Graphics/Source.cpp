@@ -18,7 +18,6 @@ public:
 	void draw_field();
 	void draw_text();
 
-
 	Window(int x0, int y0, int x1, int y1, const char* text) {
 		x0_ = x0;
 		y0_ = y0;
@@ -38,6 +37,7 @@ private:
 
 public:
 	int draw_point(int x, int y);
+	void redraw(int* numbers_of_swaps);
 
 	CoordSys(int x0, int y0, int x1, int y1, double scaleX, double scaleY) {
 		x0_ = x0;
@@ -66,10 +66,18 @@ public:
 	}
 };
 
+void CoordSys::redraw(int* numbers_of_swaps) {
+	int end = 0;
+
+	for (int size_of_array = 10; size_of_array < 3000; size_of_array += 10) {
+		if (!end) if (draw_point(size_of_array, numbers_of_swaps[size_of_array / 10])) end = 1;
+	}
+}
+
 int CoordSys::draw_point(int x0, int y0) {
 	double x = x0 * scaleX_, y = y0 * scaleY_;
 
-	if (x < (x1_ - x0_ - 10) && y < (y1_ - y0_ - 10)) {
+	if (x < (x1_ - x0_ - 12) && y < (y1_ - y0_ - 12)) {
 		txCircle(find_x(x), find_y(y), 2);
 		return 0;
 	}
@@ -91,8 +99,10 @@ void Window::draw_numbers(const char* number, int x) {
 }
 
 void Window::draw_text() {
-	txSetColor(TX_BLACK);
+	txSetColor(TX_WHITE);
+	txRectangle(x0_ + 50, y1_ + 10, x1_, y1_ + 40);
 
+	txSetColor(TX_BLACK);
 	txDrawText(x0_, y1_ + 10, x1_, y1_ + 40, text_);
 }
 
@@ -148,9 +158,6 @@ int Button::is_button_pressed() {
 	return 0;
 }
 
-//int* numbers_of_swaps_selection_sort = new int[300];
-//int* numbers_of_swaps_bubble_sort = new int[300];
-
 double* generate_array(size_t size_of_array) {
 	double* array = new double[size_of_array];
 
@@ -199,15 +206,15 @@ int bubble_sort(size_t size_of_array, double* array) {
 int* draw_sort(int kind_of_sort, double scaleX, double scaleY) {
 	int end = 0;
 
+	CoordSys left_graph(20, 20, 390, 450, scaleX, scaleY);
+	CoordSys right_graph(410, 20, 789, 450, 0.08, 0.00008);
+
 	int* numbers_of_swaps_bubble_sort = new int[300];
 	int* numbers_of_swaps_selection_sort = new int[300];
 
 	for (size_t size_of_array = 10; size_of_array < 3000; size_of_array += 10) {
 		double* array = generate_array(size_of_array);
 		int number_of_comparisons = get_number_of_comparisons(size_of_array), number_of_swaps = 0;
-
-		CoordSys left_graph(20, 20, 390, 450, scaleX, scaleY);
-		CoordSys right_graph(410, 20, 789, 450, 0.08, 0.00008);
 
 		if (kind_of_sort == 0) {
 			number_of_swaps = bubble_sort(size_of_array, array);
@@ -233,6 +240,9 @@ int* draw_sort(int kind_of_sort, double scaleX, double scaleY) {
 	else return numbers_of_swaps_selection_sort;
 }
 
+Window left_field(20, 20, 390, 450, "dependence of the number of swaps\non the number of elements");
+Window right_field(410, 20, 789, 450, "dependence of the number of comparisons\non the number of elements");
+
 Button Bubble_sort(100, 500, 300, 550, "Bubble sort");
 Button Clear(350, 500, 450, 550, "Clear");
 Button Selection_sort(500, 500, 700, 550, "Selecton sort");
@@ -241,9 +251,6 @@ Button Plus(20, 460, 40, 480, "+");
 Button Minus(40, 460, 60, 480, "-");
 
 void create_working_space() {
-	Window left_field(20, 20, 390, 450, "dependence of the number of swaps\non the number of elements");
-	Window right_field(410, 20, 789, 450, "dependence of the number of comparisons\non the number of elements");
-
 	left_field.draw_field();
 	right_field.draw_field();
 
@@ -283,35 +290,37 @@ int main() {
 	while (TRUE) {
 		if (Plus.is_button_pressed()) {
 			scaleY *= 2;
-			//printf("%lf ", scaleY);
 
 			txSetColor(TX_BLACK);
-			create_working_space();
+			left_field.draw_field();
+
+			CoordSys left_graph(20, 20, 390, 450, scaleX, scaleY);
 
 			if (bubble_plotted) {
 				txSetColor(TX_LIGHTBLUE);
-				redraw(numbers_of_swaps_bubble_sort, scaleX, scaleY);
+				left_graph.redraw(numbers_of_swaps_bubble_sort);
 			}
 			if (selection_plotted) {
 				txSetColor(TX_ORANGE);
-				redraw(numbers_of_swaps_selection_sort, scaleX, scaleY);
+				left_graph.redraw(numbers_of_swaps_selection_sort);
 			}
 
 		}
 		if (Minus.is_button_pressed()) {
 			scaleY /= 2;
-			//printf("%lf ", scaleY);
 
 			txSetColor(TX_BLACK);
-			create_working_space();
+			left_field.draw_field();
+
+			CoordSys left_graph(20, 20, 390, 450, scaleX, scaleY);
 
 			if (bubble_plotted) {
 				txSetColor(TX_LIGHTBLUE);
-				redraw(numbers_of_swaps_bubble_sort, scaleX, scaleY);
+				left_graph.redraw(numbers_of_swaps_bubble_sort);
 			}
 			if (selection_plotted) {
 				txSetColor(TX_ORANGE);
-				redraw(numbers_of_swaps_selection_sort, scaleX, scaleY);
+				left_graph.redraw(numbers_of_swaps_selection_sort);
 			}
 		}
 
@@ -357,7 +366,6 @@ int main() {
 	}
 
 	txDisableAutoPause();
-
 
 	if (bubble_plotted) delete[] numbers_of_swaps_bubble_sort;
 	if (selection_plotted) delete[] numbers_of_swaps_selection_sort;
