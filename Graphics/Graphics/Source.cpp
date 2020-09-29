@@ -4,100 +4,152 @@
 #include <algorithm>
 #include <ctime>
 #include <fstream>
+#include <string.h>
 
-struct Coords {
-	int x0, y0, x1, y1;
+class Window {
+private:
+	int x0_, y0_, x1_, y1_;
+	const char* text_;
+
+	void grid();
+	void axes();
+public:
+	void draw_numbers(const char* number, int x);
+	void draw_field();
+	void draw_text();
+
+
+	Window(int x0, int y0, int x1, int y1, const char* text) {
+		x0_ = x0;
+		y0_ = y0;
+		x1_ = x1;
+		y1_ = y1;
+		text_ = text;
+	}
 };
 
-struct Fields {
-	Coords field_l;
-	Coords field_r;
+class CoordSys {
+private:
+	int x0_, y0_, x1_, y1_;
+	double scaleX_, scaleY_;
+
+	double find_x(double x);
+	double find_y(double y);
+
+public:
+	int draw_point(int x, int y);
+
+	CoordSys(int x0, int y0, int x1, int y1, double scaleX, double scaleY) {
+		x0_ = x0;
+		y0_ = y0;
+		x1_ = x1;
+		y1_ = y1;
+		scaleX_ = scaleX;
+		scaleY_ = scaleY;
+	}
 };
 
-struct Graph {
-	Coords left, right;
+class Button {
+	int x0_, y0_, x1_, y1_;
+	const char* text_;
+
+public:
+	void draw_button();
+	int is_button_pressed();
+
+	Button(int x0, int y0, int x1, int y1, const char* text) {
+		x0_ = x0;
+		y0_ = y0;
+		x1_ = x1;
+		y1_ = y1;
+		text_ = text;
+	}
 };
 
-void create_grid(Coords const field) {
-	txSetColor(TX_LIGHTGRAY);
+int CoordSys::draw_point(int x0, int y0) {
+	double x = x0 * scaleX_, y = y0 * scaleY_;
 
-	for (int x = field.x0; x < field.x1; x += 10) txLine(x, field.y0, x, field.y1);
-	for (int y = field.y0; y < field.y1; y += 10) txLine(field.x0, y, field.x1, y);
+	if (x < (x1_ - x0_ - 10) && y < (y1_ - y0_ - 10)) {
+		txCircle(find_x(x), find_y(y), 2);
+		return 0;
+	}
+
+	return 1;
 }
 
-void create_axes(const Coords field, int width, int height) {
-	create_grid(field);
+double CoordSys::find_x(double x) {
+	return x0_ + x + 10;
+}
 
+double CoordSys::find_y(double y) {
+	return y1_ - y - 10;
+}
+
+void Window::draw_numbers(const char* number, int x) {
+	txSetColor(TX_BLACK);
+	txDrawText(10 + x, 430, 30 + x, 460, number);
+}
+
+void Window::draw_text() {
 	txSetColor(TX_BLACK);
 
-	txLine(field.x0, field.y1 - 10, field.x1, field.y1 - 10);
-	txLine(field.x0 + 10, field.y0, field.x0 + 10, field.y1);
-
-	txLine(field.x1, field.y1 - 10, field.x1 - 5, field.y1 - 10 - 5);
-	txLine(field.x1, field.y1 - 10, field.x1 - 5, field.y1 - 10 + 5);
-
-	txLine(field.x0 + 10, field.y0, field.x0 + 10 + 5, field.y0 + 5);
-	txLine(field.x0 + 10, field.y0, field.x0 + 10 - 5, field.y0 + 5);
-
-	for (int x = field.x0; x < field.x1; x += 10) txLine(x, field.y1 - 10 - 1, x, field.y1 - 10 + 2);
-	for (int y = field.y0; y < field.y1; y += 10) txLine(field.x0 + 10 - 1, y, field.x0 + 10 + 2, y);
+	txDrawText(x0_, y1_ + 10, x1_, y1_ + 40, text_);
 }
 
-void create_field(int width, int height, Coords field) {
-	txRectangle(field.x0, field.y0, field.x1, field.y1);
+void Window::grid() {
+	txSetColor(TX_LIGHTGRAY);
 
-	create_axes(field, width, height);
+	for (int x = x0_; x < x1_; x += 10) txLine(x, y0_, x, y1_);
+	for (int y = y0_; y < y1_; y += 10) txLine(x0_, y, x1_, y);
 }
 
-void create_button(Coords button, const char* text) {
-	txRectangle(button.x0, button.y0, button.x1, button.y1);
-	txDrawText(button.x0, button.y0, button.x1, button.y1, text);
+void Window::axes() {
+	txSetColor(TX_BLACK);
+
+	txLine(x0_, y1_ - 10, x1_, y1_ - 10);
+	txLine(x0_ + 10, y0_, x0_ + 10, y1_);
+
+	txLine(x1_, y1_ - 10, x1_ - 5, y1_ - 10 - 5);
+	txLine(x1_, y1_ - 10, x1_ - 5, y1_ - 10 + 5);
+
+	txLine(x0_ + 10, y0_, x0_ + 10 + 5, y0_ + 5);
+	txLine(x0_ + 10, y0_, x0_ + 10 - 5, y0_ + 5);
+
+	for (int x = x0_; x < x1_; x += 10) txLine(x, y1_ - 10 - 1, x, y1_ - 10 + 2);
+	for (int y = y0_; y < y1_; y += 10) txLine(x0_ + 10 - 1, y, x0_ + 10 + 2, y);
 }
 
-Fields create_fields(int width, int height) {
-	Coords field_l = { 20, 20, width / 2 - 10, height - 150 };
+void Window::draw_field() {
+	txRectangle(x0_, y0_, x1_, y1_);
+	draw_text();
+	grid();
+	axes();
+	//char result[17];
+	//for (int i = 10; i < 3000; i += 20) {
+	//	_itoa_s(i, result, 10);
+	//	draw_numbers(result, i);
+	//}
 
-	create_field(width, height, field_l);
-
-	Coords field_r = { width / 2 + 10, 20, width - 20, height - 150 };
-
-	create_field(width, height, field_r);
-
-	Coords button;
-	
-	button = { 100, height - 100, 300, height - 50 };
-	create_button(button, "Bubble sort");
-
-	button = { width - 300, height - 100, width - 100, height - 50 };
-	create_button(button, "Selection sort");
-
-	button = { 350, height - 100, 450, height - 50 };
-	create_button(button, "Clear");
-
-	txDrawText(20, height - 140, width / 2 - 10, height - 110, "dependence of the number of swaps\non the number of elements");
-	txDrawText(width / 2 + 10, height - 140, width - 20, height - 110, "dependence of the number of comparisons\non the number of elements");
-
-	Fields fields = { field_l, field_r };
-	return fields;
 }
 
-int if_button_pressed(int width, int height) {
-	while (TRUE) {
-		if (txMouseButtons() == 1) {
-			int x = txMouseX(), y = txMouseY();
+void Button::draw_button() {
+	txRectangle(x0_, y0_, x1_, y1_);
+	txDrawText(x0_, y0_, x1_, y1_, text_);
+}
 
-			if (x >= 100 && x <= 300 && y >= height - 100 && y <= height - 50) return 0;                      //Bubble sort
-			if (x >= width - 300 && x <= width - 100 && y >= height - 100 && y <= height - 50) return 1;      //Selection sort
-			if (x >= 350 && x <= 450 && y >= height - 100 && y <= height - 50) return 2;                      //Clear
-		}
+int Button::is_button_pressed() {
+	double x = txMouseX(), y = txMouseY();
+
+	if (x >= x0_ && x <= x1_ && y >= y0_ && y <= y1_ && txMouseButtons() == 1) {
+		while (txMouseButtons() == 1) txSleep(100);
+		return 1;
 	}
+
+	return 0;
 }
 
-void plot_point(Coords line, Coords field, double scale_x, double scale_y) {
-	double x = line.x1 * scale_x, y = line.y1 * scale_y;
-
-	if (x < (field.x1 - field.x0) && y < (field.y1 - field.y0)) txCircle(x + field.x0 + 10, field.y1 - y - 10, 2);
-}
+//int* numbers_of_swaps_selection_sort = new int[300];
+//int* numbers_of_swaps_bubble_sort = new int[300];
 
 double* generate_array(size_t size_of_array) {
 	double* array = new double[size_of_array];
@@ -112,8 +164,8 @@ int get_number_of_comparisons(size_t size_of_array) {
 	return (size_of_array * size_of_array - size_of_array) / 2;
 }
 
-void selection_sort(size_t size_of_array, double* array, Fields fields, Graph gr) {
-	int number_of_comparisons = get_number_of_comparisons(size_of_array), number_of_swaps = 0;
+int selection_sort(size_t size_of_array, double* array) {
+	int number_of_swaps = 0;
 
 	for (int start_index = 0; start_index < size_of_array - 1; start_index++) {
 		int min_index = start_index;
@@ -126,19 +178,11 @@ void selection_sort(size_t size_of_array, double* array, Fields fields, Graph gr
 		if (start_index != min_index) number_of_swaps++;
 	}
 
-	gr.left.x1 = size_of_array;
-	gr.left.y1 = number_of_swaps;
-
-	plot_point(gr.left, fields.field_l, 0.1, 0.01);
-
-	gr.right.x1 = size_of_array;
-	gr.right.y1 = number_of_comparisons;
-
-	plot_point(gr.right, fields.field_r, 0.08, 0.00008);
+	return number_of_swaps;
 }
 
-void bubble_sort(size_t size_of_array, double* array, Fields fields, Graph gr) {
-	int number_of_comparisons = get_number_of_comparisons(size_of_array), number_of_swaps = 0;
+int bubble_sort(size_t size_of_array, double* array) {
+	int number_of_swaps = 0;
 
 	for (int i = 0; i < size_of_array - 1; i++) {
 		for (int j = 0; j < size_of_array - i - 1; j++) {
@@ -149,15 +193,76 @@ void bubble_sort(size_t size_of_array, double* array, Fields fields, Graph gr) {
 		}
 	}
 
-	gr.left.x1 = size_of_array;
-	gr.left.y1 = number_of_swaps;
+	return number_of_swaps;
+}
 
-	plot_point(gr.left, fields.field_l, 0.1, 0.0001);
+int* draw_sort(int kind_of_sort, double scaleX, double scaleY) {
+	int end = 0;
 
-	gr.right.x1 = size_of_array;
-	gr.right.y1 = number_of_comparisons;
+	int* numbers_of_swaps_bubble_sort = new int[300];
+	int* numbers_of_swaps_selection_sort = new int[300];
 
-	plot_point(gr.right, fields.field_r, 0.08, 0.00008);
+	for (size_t size_of_array = 10; size_of_array < 3000; size_of_array += 10) {
+		double* array = generate_array(size_of_array);
+		int number_of_comparisons = get_number_of_comparisons(size_of_array), number_of_swaps = 0;
+
+		CoordSys left_graph(20, 20, 390, 450, scaleX, scaleY);
+		CoordSys right_graph(410, 20, 789, 450, 0.08, 0.00008);
+
+		if (kind_of_sort == 0) {
+			number_of_swaps = bubble_sort(size_of_array, array);
+			numbers_of_swaps_bubble_sort[size_of_array / 10] = number_of_swaps;
+
+			txSetColor(TX_LIGHTBLUE);
+		}
+		else {
+			number_of_swaps = selection_sort(size_of_array, array);
+			numbers_of_swaps_selection_sort[size_of_array / 10] = number_of_swaps;
+
+			txSetColor(TX_ORANGE);
+		}
+
+		if (!end) end = left_graph.draw_point(size_of_array, number_of_swaps);
+
+		if (right_graph.draw_point(size_of_array, number_of_comparisons)) break;
+
+		delete[] array;
+	}
+
+	if (kind_of_sort == 0) return numbers_of_swaps_bubble_sort;
+	else return numbers_of_swaps_selection_sort;
+}
+
+Button Bubble_sort(100, 500, 300, 550, "Bubble sort");
+Button Clear(350, 500, 450, 550, "Clear");
+Button Selection_sort(500, 500, 700, 550, "Selecton sort");
+Button Exit(725, 500, 775, 550, "Exit");
+Button Plus(20, 460, 40, 480, "+");
+Button Minus(40, 460, 60, 480, "-");
+
+void create_working_space() {
+	Window left_field(20, 20, 390, 450, "dependence of the number of swaps\non the number of elements");
+	Window right_field(410, 20, 789, 450, "dependence of the number of comparisons\non the number of elements");
+
+	left_field.draw_field();
+	right_field.draw_field();
+
+	Bubble_sort.draw_button();
+	Clear.draw_button();
+	Selection_sort.draw_button();
+	Exit.draw_button();
+}
+
+void redraw(int* numbers_of_swaps, double scaleX, double scaleY) {
+	CoordSys left_graph(20, 20, 390, 450, scaleX, scaleY);
+	CoordSys right_graph(410, 20, 789, 450, 0.08, 0.00008);
+
+	int end = 0;
+	for (int size_of_array = 10; size_of_array < 3000; size_of_array += 10) {
+
+		if (!end) if (left_graph.draw_point(size_of_array, numbers_of_swaps[size_of_array / 10])) end = 1;
+		right_graph.draw_point(size_of_array, get_number_of_comparisons(size_of_array));
+	}
 }
 
 int main() {
@@ -166,43 +271,96 @@ int main() {
 	txSetColor(TX_BLACK);
 	txClear();
 
-	Fields fields = create_fields(width, height);
+	create_working_space();
+
+	double scaleX = 0.1, scaleY = 0.01;
+
+	int* numbers_of_swaps_selection_sort = new int[300];
+	int* numbers_of_swaps_bubble_sort = new int[300];
+
+	int bubble_plotted = 0, selection_plotted = 0;
 
 	while (TRUE) {
-		Graph gr = { { 0, 0, 0, 0 }, { 0, 0, 0, 0 } };
-		int button = if_button_pressed(800, 600);
+		if (Plus.is_button_pressed()) {
+			scaleY *= 2;
+			//printf("%lf ", scaleY);
 
-		txSetColor(TX_LIGHTBLUE);
-
-		if (button == 0) {
-			for (size_t size_of_array = 10; size_of_array < 3000; size_of_array += 10) {
-				double* array = generate_array(size_of_array);
-
-				bubble_sort(size_of_array, array, fields, gr);
-
-				delete[] array;
-			}
-		}
-
-		if (button == 1) {
-			for (size_t size_of_array = 10; size_of_array < 3000; size_of_array += 10) {
-				double* array = generate_array(size_of_array);
-
-				selection_sort(size_of_array, array, fields, gr);
-
-				delete[] array;
-			}
-		}
-
-		if (button == 2) {
-			txClear();
 			txSetColor(TX_BLACK);
-			Fields fields = create_fields(width, height);
+			create_working_space();
+
+			if (bubble_plotted) {
+				txSetColor(TX_LIGHTBLUE);
+				redraw(numbers_of_swaps_bubble_sort, scaleX, scaleY);
+			}
+			if (selection_plotted) {
+				txSetColor(TX_ORANGE);
+				redraw(numbers_of_swaps_selection_sort, scaleX, scaleY);
+			}
+
+		}
+		if (Minus.is_button_pressed()) {
+			scaleY /= 2;
+			//printf("%lf ", scaleY);
+
+			txSetColor(TX_BLACK);
+			create_working_space();
+
+			if (bubble_plotted) {
+				txSetColor(TX_LIGHTBLUE);
+				redraw(numbers_of_swaps_bubble_sort, scaleX, scaleY);
+			}
+			if (selection_plotted) {
+				txSetColor(TX_ORANGE);
+				redraw(numbers_of_swaps_selection_sort, scaleX, scaleY);
+			}
 		}
 
-//		std::cout << "Done! ";
-		txSleep(1000);
+		int kind_of_sort = -1;
+
+		if (Bubble_sort.is_button_pressed()) {
+			kind_of_sort = 0;
+			numbers_of_swaps_bubble_sort = draw_sort(kind_of_sort, scaleX, scaleY);
+			bubble_plotted = 1;
+
+			txSetColor(TX_BLACK);
+			Plus.draw_button();
+			Minus.draw_button();
+		}
+		if (Selection_sort.is_button_pressed()) {
+			kind_of_sort = 1;
+			numbers_of_swaps_selection_sort = draw_sort(kind_of_sort, scaleX, scaleY);
+			selection_plotted = 1;
+
+			txSetColor(TX_BLACK);
+			Plus.draw_button();
+			Minus.draw_button();
+		}
+
+		if (Clear.is_button_pressed()) {
+			txClear();
+
+			if (bubble_plotted) {
+				delete[] numbers_of_swaps_bubble_sort;
+				int* numbers_of_swaps_bubble_sort = new int[300];
+				bubble_plotted = 0;
+			}
+			if (selection_plotted) {
+				delete[] numbers_of_swaps_selection_sort;
+				int* numbers_of_swaps_selection_sort = new int[300];
+				selection_plotted = 0;
+			}
+
+			txSetColor(TX_BLACK);
+			create_working_space();
+		}
+		if (Exit.is_button_pressed()) break;
 	}
+
+	txDisableAutoPause();
+
+
+	if (bubble_plotted) delete[] numbers_of_swaps_bubble_sort;
+	if (selection_plotted) delete[] numbers_of_swaps_selection_sort;
 }
 
 
