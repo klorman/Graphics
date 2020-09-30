@@ -348,16 +348,8 @@ int main() {
 		if (Clear.is_button_pressed()) {
 			txClear();
 
-			if (bubble_plotted) {
-				delete[] numbers_of_swaps_bubble_sort;
-				int* numbers_of_swaps_bubble_sort = new int[300];
-				bubble_plotted = 0;
-			}
-			if (selection_plotted) {
-				delete[] numbers_of_swaps_selection_sort;
-				int* numbers_of_swaps_selection_sort = new int[300];
-				selection_plotted = 0;
-			}
+			if (bubble_plotted) bubble_plotted = 0;
+			if (selection_plotted) selection_plotted = 0;
 
 			txSetColor(TX_BLACK);
 			create_working_space();
