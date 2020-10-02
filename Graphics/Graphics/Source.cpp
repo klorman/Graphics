@@ -14,7 +14,7 @@ private:
 	void grid();
 	void axes();
 public:
-	void draw_numbers(const char* number, int x);
+	void draw_numbers(int x);
 	void draw_field();
 	void draw_text();
 
@@ -77,7 +77,7 @@ void CoordSys::redraw(int* numbers_of_swaps) {
 int CoordSys::draw_point(int x0, int y0) {
 	double x = x0 * scaleX_, y = y0 * scaleY_;
 
-	if (x < (x1_ - x0_ - 12) && y < (y1_ - y0_ - 12)) {
+	if (x < (x1_ - x0_ - 22) && y < (y1_ - y0_ - 22)) {
 		txCircle(find_x(x), find_y(y), 2);
 		return 0;
 	}
@@ -86,19 +86,29 @@ int CoordSys::draw_point(int x0, int y0) {
 }
 
 double CoordSys::find_x(double x) {
-	return x0_ + x + 10;
+	return x0_ + x + 20;
 }
 
 double CoordSys::find_y(double y) {
-	return y1_ - y - 10;
+	return y1_ - y - 20;
 }
 
-void Window::draw_numbers(const char* number, int x) {
+void Window::draw_numbers(int i) { //ono rabotaet ne pravilno
 	txSetColor(TX_BLACK);
-	txDrawText(10 + x, 430, 30 + x, 460, number);
+
+	char number_x[5], number_y[8];
+	_itoa_s(i * 10, number_x, 10);
+	_itoa_s(i * 1000, number_y, 10);
+
+	txSelectFont("System", false, false, false, false, false, false, 0);
+	txDrawText(x0_ + 20 + 2 + i, 430, x1_ + 50 + 2 + i, 450, number_x, DT_VCENTER);
+
+	txDrawText(x0_, y1_ - 80 - 2 - i, x0_ + 40, y1_ - 20 - 2 - i, number_y, DT_VCENTER);
 }
 
 void Window::draw_text() {
+	txSelectFont("System", false, false, false, false, false, false, 0);
+
 	txSetColor(TX_WHITE);
 	txRectangle(x0_ + 50, y1_ + 10, x1_, y1_ + 40);
 
@@ -116,17 +126,17 @@ void Window::grid() {
 void Window::axes() {
 	txSetColor(TX_BLACK);
 
-	txLine(x0_, y1_ - 10, x1_, y1_ - 10);
-	txLine(x0_ + 10, y0_, x0_ + 10, y1_);
+	txLine(x0_, y1_ - 20, x1_, y1_ - 20);
+	txLine(x0_ + 20, y0_, x0_ + 20, y1_);
 
-	txLine(x1_, y1_ - 10, x1_ - 5, y1_ - 10 - 5);
-	txLine(x1_, y1_ - 10, x1_ - 5, y1_ - 10 + 5);
+	txLine(x1_, y1_ - 20, x1_ - 5, y1_ - 20 - 5);
+	txLine(x1_, y1_ - 20, x1_ - 5, y1_ - 20 + 5);
 
-	txLine(x0_ + 10, y0_, x0_ + 10 + 5, y0_ + 5);
-	txLine(x0_ + 10, y0_, x0_ + 10 - 5, y0_ + 5);
+	txLine(x0_ + 20, y0_, x0_ + 20 + 5, y0_ + 5);
+	txLine(x0_ + 20, y0_, x0_ + 20 - 5, y0_ + 5);
 
-	for (int x = x0_; x < x1_; x += 10) txLine(x, y1_ - 10 - 1, x, y1_ - 10 + 2);
-	for (int y = y0_; y < y1_; y += 10) txLine(x0_ + 10 - 1, y, x0_ + 10 + 2, y);
+	for (int x = x0_ + 20; x < x1_; x += 30) txLine(x, y1_ - 20 - 1, x, y1_ - 20 + 2); 
+	for (int y = y0_ + 20; y < y1_; y += 30) txLine(x0_ + 20 - 1, y, x0_ + 20 + 2, y);
 }
 
 void Window::draw_field() {
@@ -134,12 +144,8 @@ void Window::draw_field() {
 	draw_text();
 	grid();
 	axes();
-	//char result[17];
-	//for (int i = 10; i < 3000; i += 20) {
-	//	_itoa_s(i, result, 10);
-	//	draw_numbers(result, i);
-	//}
 
+	for (int i = 0; i <= 300; i += 60) draw_numbers(i);
 }
 
 void Button::draw_button() {
@@ -240,17 +246,13 @@ int* draw_sort(int kind_of_sort, double scaleX, double scaleY) {
 	else return numbers_of_swaps_selection_sort;
 }
 
-Window left_field(20, 20, 390, 450, "dependence of the number of swaps\non the number of elements");
-Window right_field(410, 20, 789, 450, "dependence of the number of comparisons\non the number of elements");
+void create_working_space(Window& left_field,
+						  Window& right_field,
+						  Button& Bubble_sort,
+	                      Button& Clear,
+	                      Button& Selection_sort,
+	                      Button& Exit) {
 
-Button Bubble_sort(100, 500, 300, 550, "Bubble sort");
-Button Clear(350, 500, 450, 550, "Clear");
-Button Selection_sort(500, 500, 700, 550, "Selecton sort");
-Button Exit(725, 500, 775, 550, "Exit");
-Button Plus(20, 460, 40, 480, "+");
-Button Minus(40, 460, 60, 480, "-");
-
-void create_working_space() {
 	left_field.draw_field();
 	right_field.draw_field();
 
@@ -260,25 +262,28 @@ void create_working_space() {
 	Exit.draw_button();
 }
 
-void redraw(int* numbers_of_swaps, double scaleX, double scaleY) {
-	CoordSys left_graph(20, 20, 390, 450, scaleX, scaleY);
-	CoordSys right_graph(410, 20, 789, 450, 0.08, 0.00008);
-
-	int end = 0;
-	for (int size_of_array = 10; size_of_array < 3000; size_of_array += 10) {
-
-		if (!end) if (left_graph.draw_point(size_of_array, numbers_of_swaps[size_of_array / 10])) end = 1;
-		right_graph.draw_point(size_of_array, get_number_of_comparisons(size_of_array));
-	}
-}
-
 int main() {
 	int width = 800, height = 600;
 	txCreateWindow(width, height);
 	txSetColor(TX_BLACK);
 	txClear();
 
-	create_working_space();
+	Window left_field(20, 20, 390, 450, "dependence of the number of swaps\non the number of elements");
+	Window right_field(410, 20, 789, 450, "dependence of the number of comparisons\non the number of elements");
+
+	Button Bubble_sort(100, 500, 300, 550, "Bubble sort");
+	Button Clear(350, 500, 450, 550, "Clear");
+	Button Selection_sort(500, 500, 700, 550, "Selecton sort");
+	Button Exit(725, 500, 775, 550, "Exit");
+	Button Plus(20, 460, 40, 480, "+");
+	Button Minus(40, 460, 60, 480, "-");
+
+	create_working_space(left_field,
+		                 right_field,
+		                 Bubble_sort,
+		                 Clear,
+		                 Selection_sort,
+		                 Exit);
 
 	double scaleX = 0.1, scaleY = 0.01;
 
@@ -288,7 +293,7 @@ int main() {
 	int bubble_plotted = 0, selection_plotted = 0;
 
 	while (TRUE) {
-		if (Plus.is_button_pressed()) {
+		if (Plus.is_button_pressed() && (bubble_plotted || selection_plotted)) {
 			scaleY *= 2;
 
 			txSetColor(TX_BLACK);
@@ -306,7 +311,7 @@ int main() {
 			}
 
 		}
-		if (Minus.is_button_pressed()) {
+		if (Minus.is_button_pressed() && (bubble_plotted || selection_plotted)) {
 			scaleY /= 2;
 
 			txSetColor(TX_BLACK);
@@ -351,16 +356,23 @@ int main() {
 			if (bubble_plotted) bubble_plotted = 0;
 			if (selection_plotted) selection_plotted = 0;
 
+			scaleX = 0.1;
+			scaleY = 0.01;
+
 			txSetColor(TX_BLACK);
-			create_working_space();
+			create_working_space(left_field,
+				right_field,
+				Bubble_sort,
+				Clear,
+				Selection_sort,
+				Exit);
 		}
 		if (Exit.is_button_pressed()) break;
 	}
 
 	txDisableAutoPause();
 
+
 	if (bubble_plotted) delete[] numbers_of_swaps_bubble_sort;
 	if (selection_plotted) delete[] numbers_of_swaps_selection_sort;
 }
-
-
