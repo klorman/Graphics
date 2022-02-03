@@ -11,12 +11,18 @@ private:
 	SIZE _size;
 	HINSTANCE _hInst;
 	HWND _hWnd;
-	HDC _canvas;
+	HDC _canvas[2];
 
 	int _step;
 	POINT _offset;
 
+	static LRESULT CALLBACK PlotterProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+	       LRESULT CALLBACK OnMessage  (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
+	void onMouseMove(POINT pos);
+
 	bool registerClass(LPCTSTR className);
+
 	void drawField();
 	void drawGrid();
 	void drawAxes();
@@ -31,6 +37,3 @@ public:
 
 	HDC& getDC();
 };
-
-LRESULT CALLBACK PlotterProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-void onPaint(HWND hWnd);

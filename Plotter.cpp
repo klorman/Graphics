@@ -4,6 +4,7 @@ Plotter::Plotter(LPCTSTR name, POINT pos, SIZE size, HWND hPWnd /*= NULL*/, HINS
     _size(size),
     _hInst(hInst),
     _hWnd(NULL),
+    _canvas(),
     _step(20),
     _offset({ (long) round(size.cx / 2), (long) round(size.cy / 2) })
 {
@@ -25,15 +26,17 @@ Plotter::Plotter(LPCTSTR name, POINT pos, SIZE size, HWND hPWnd /*= NULL*/, HINS
         NULL,
         NULL,
         _hInst,
-        NULL);
+        this);
 
-    _canvas = GetDC(_hWnd);
+    _canvas[0] = GetDC(_hWnd);
+    _canvas[1] = CreateCompatibleDC(_canvas[0]);
 
     clearField();
 }
 
 Plotter::~Plotter() {
-    ReleaseDC(_hWnd, _canvas);
+    ReleaseDC(_hWnd, _canvas[0]);
+    ReleaseDC(_hWnd, _canvas[1]);
 
     DestroyWindow(_hWnd);
 }
@@ -54,23 +57,37 @@ bool Plotter::registerClass(LPCTSTR className) {
     return RegisterClass(&windowClass) != 0;
 }
 
-LRESULT CALLBACK PlotterProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK Plotter::PlotterProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+    LONG dwNewLong;
+    Plotter* pWnd;
+
+    if (message == WM_NCCREATE) {
+        dwNewLong = (long)(((LPCREATESTRUCT)lParam)->lpCreateParams);
+        SetWindowLong(hWnd, GWL_USERDATA, dwNewLong);
+        return TRUE;
+    }
+    else {
+        pWnd = (Plotter*)GetWindowLong(hWnd, GWL_USERDATA);
+    }
+
+    if (pWnd) return pWnd->OnMessage(hWnd, message, wParam, lParam);
+
+    return FALSE;
+}
+
+LRESULT CALLBACK Plotter::OnMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message)
     {
     case WM_COMMAND:
         switch (LOWORD(wParam)) {
-        
+
         default:
             break;
         }
         break;
 
-    case WM_LBUTTONDOWN:
-
-        break;
-
-    case WM_PAINT:
-        onPaint(hWnd);
+    case WM_MOUSEMOVE:
+        onMouseMove({ LOWORD(lParam), HIWORD(lParam) });
         break;
 
     case WM_DESTROY:
@@ -84,11 +101,23 @@ LRESULT CALLBACK PlotterProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
     return FALSE;
 }
 
-void onPaint(HWND hWnd) {
-    PAINTSTRUCT ps = {};
-    
-    HDC dc = BeginPaint(hWnd, &ps);
-    EndPaint(hWnd, &ps);
+void Plotter::onMouseMove(POINT pos) {
+    static POINT oldMousePos = { -1, -1 };
+
+    if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) {
+        if (oldMousePos.x == -1)
+            oldMousePos = pos;
+        else {
+            _offset = { _offset.x + pos.x - oldMousePos.x, _offset.y - pos.y + oldMousePos.y };
+
+            oldMousePos = pos;
+
+            clearField();
+        }
+    }
+    else {
+        oldMousePos = { -1, -1 };
+    }
 }
 
 void Plotter::clearField() {
@@ -106,7 +135,7 @@ void Plotter::drawField() {
 void Plotter::drawGrid() {
     setColor(RGB(200, 200, 200));
 
-    for (int y = _size.cy - _offset.y % _step; y >= 0; y -= _step) {
+    for (int y = _offset.y % _step - _step; y <= _size.cy; y += _step) {
         drawLine({ 0, y }, { _size.cx, y });
     }
 
@@ -123,17 +152,19 @@ void Plotter::drawAxes() {
 }
 
 void Plotter::drawLine(POINT start, POINT end) {
-    MoveToEx(_canvas, start.x, _size.cy - start.y, NULL);
-    LineTo(_canvas, end.x, _size.cy - end.y);
+    MoveToEx(_canvas[0], start.x, _size.cy - start.y, NULL);
+    LineTo(_canvas[0], end.x, _size.cy - end.y);
     UpdateWindow(_hWnd);
 }
 
 void Plotter::setColor(COLORREF color) {
-    HPEN hpen = CreatePen(PS_SOLID, 1, color);
+    HGDIOBJ obj = CreatePen(PS_SOLID, 1, color);
 
-    SelectPen(_canvas, hpen);
+    obj = SelectPen(_canvas[0], obj);
+
+    DeleteObject(obj);
 }
 
 HDC& Plotter::getDC() {
-    return _canvas;
+    return _canvas[0];
 }
