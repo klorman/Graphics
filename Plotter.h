@@ -16,13 +16,17 @@ private:
 	HBITMAP _bmp,
             _stockBmp;
 
+	const int INITIALSTEP = 40;
+
 	int _step;
+	int _divisionPrice;
 	POINT _offset;
 
 	static LRESULT CALLBACK PlotterProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	       LRESULT CALLBACK OnMessage  (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 	void onMouseMove(POINT pos);
+	void onScroll(short delta);
 
 	bool registerClass(LPCTSTR className);
 

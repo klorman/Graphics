@@ -8,7 +8,8 @@ Plotter::Plotter(LPCTSTR name, POINT pos, SIZE size, HWND hPWnd /*= NULL*/, HINS
     _canvasUpdateLock(0),
     _bmp(NULL),
     _stockBmp(NULL),
-    _step(20),
+    _step(INITIALSTEP),
+    _divisionPrice(1),
     _offset({ (long) round(size.cx / 2), (long) round(size.cy / 2) })
 {
     assert(registerClass(name));
@@ -97,6 +98,10 @@ LRESULT CALLBACK Plotter::OnMessage(HWND hWnd, UINT message, WPARAM wParam, LPAR
         onMouseMove({ LOWORD(lParam), HIWORD(lParam) });
         break;
 
+    case WM_MOUSEWHEEL:
+        onScroll(GET_WHEEL_DELTA_WPARAM(wParam));
+        break;
+
     case WM_DESTROY:
         PostQuitMessage(WM_QUIT);
         break;
@@ -125,6 +130,37 @@ void Plotter::onMouseMove(POINT pos) {
     else {
         oldMousePos = { -1, -1 };
     }
+}
+
+void Plotter::onScroll(short delta) {
+    POINT mousePos = {};
+    GetCursorPos(&mousePos);
+    ScreenToClient(_hWnd, &mousePos);
+
+    assert(delta != 0);
+    int deltaStep = 2 * (delta / abs(delta)); //(short) (delta / 60); // = 2
+    int k = 1 - (_step + deltaStep) / _step;
+
+    _offset = {
+        _offset.x + (mousePos.x - _offset.x) * k,
+        _offset.y + (mousePos.y - _offset.y) * k
+    };
+
+    _step += deltaStep;
+
+    if (_step < INITIALSTEP / 4) {
+        _step = INITIALSTEP;
+
+        _divisionPrice *= 4;
+    }
+
+    if (_step > INITIALSTEP) {
+        _step = INITIALSTEP / 4;
+
+        _divisionPrice /= 4;
+    }
+
+    clearField();
 }
 
 void Plotter::clearField() {
