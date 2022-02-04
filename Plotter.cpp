@@ -115,39 +115,40 @@ LRESULT CALLBACK Plotter::OnMessage(HWND hWnd, UINT message, WPARAM wParam, LPAR
 
 void Plotter::onMouseMove(POINT pos) {
     static POINT oldMousePos = { -1, -1 };
-
     if (GetAsyncKeyState(VK_LBUTTON) & 0x8000) {
+        if (pos.x > 65000)
+            return;
+
         if (oldMousePos.x == -1)
             oldMousePos = pos;
         else {
             _offset = { _offset.x + pos.x - oldMousePos.x, _offset.y - pos.y + oldMousePos.y };
 
             oldMousePos = pos;
-
-            clearField();
         }
     }
     else {
         oldMousePos = { -1, -1 };
     }
+
+    redraw();
 }
 
 void Plotter::onScroll(short delta) {
-    POINT mousePos = {};
-    GetCursorPos(&mousePos);
-    ScreenToClient(_hWnd, &mousePos);
-    mousePos = {
-        mousePos.x,
-        _size.cy - mousePos.y
-    };
-
     assert(delta != 0);
-    int deltaStep = 2 * (delta / abs(delta)); //(short) (delta / 60); // = 2
+    int deltaStep = 2 * (delta / abs(delta));
+
+    if (deltaStep < 0 && _divisionPrice >= pow(4, 7))
+        return;
+
+    POINT mousePos = {};
+    getMousePos(mousePos);
+
     float k = (float) (_step + deltaStep) / _step;
 
     _offset = {
         mousePos.x + (LONG) ((_offset.x - mousePos.x) * k),
-        mousePos.y + (LONG) ((_offset.y - mousePos.y) * k)
+        _size.cy - mousePos.y + (LONG) ((_offset.y - _size.cy + mousePos.y) * k)
     };
 
     _step += deltaStep;
@@ -158,23 +159,47 @@ void Plotter::onScroll(short delta) {
         _divisionPrice *= 4;
     }
 
-    if (_step > INITIALSTEP) {
+    if (_divisionPrice >= 4 && _step > INITIALSTEP) {
         _step = INITIALSTEP / 4;
 
         _divisionPrice /= 4;
     }
 
+    redraw();
+}
+
+void Plotter::drawCursorCoords() {
+    POINT pos = {};
+    getMousePos(pos);
+
+    HFONT font = CreateFont(15, 0, 0, 0, FW_MEDIUM, ANSI_CHARSET, NULL, NULL, NULL, NULL, NULL, NULL, NULL, _T("Segoe UI"));
+    HGDIOBJ old = SelectObject(_canvas[_canvasUpdateLock], font);
+
+    std::string coords = "(" + std::to_string((LONG)round((float)(pos.x - _offset.x) / _step * _divisionPrice)) + "; " + std::to_string((LONG)round((float)(_size.cy - pos.y - _offset.y) / _step * _divisionPrice)) + ")";
+    RECT rc = { pos.x + 10, pos.y + 10, _offset.x - 10, pos.y + 20 };
+
+    DrawTextA(_canvas[_canvasUpdateLock], coords.c_str(), coords.length(), &rc, DT_LEFT | DT_NOCLIP);
+
+    SelectObject(_canvas[_canvasUpdateLock], old);
+    DeleteObject(font);
+}
+
+void Plotter::redraw() {
+    beginPaint();
+
     clearField();
+
+    //drawGraph();
+
+    endPaint();
 }
 
 void Plotter::clearField() {
-    beginPaint();
-
     Rectangle(_canvas[_canvasUpdateLock], -1, -1, _size.cx + 1, _size.cy + 1);
 
     drawField();
 
-    endPaint();
+    drawCursorCoords();
 }
 
 void Plotter::drawField() {
@@ -200,12 +225,45 @@ void Plotter::drawAxes() {
 
     drawLine({ _offset.x, 0 }, { _offset.x, _size.cy });
     drawLine({ 0, _offset.y }, { _size.cx, _offset.y });
+
+    signAxes();
 }
 
 void Plotter::drawLine(POINT start, POINT end) {
     MoveToEx(_canvas[_canvasUpdateLock], start.x, _size.cy - start.y, NULL);
     LineTo(_canvas[_canvasUpdateLock], end.x, _size.cy - end.y);
     UpdateWindow(_hWnd);
+}
+
+void Plotter::signAxes() {
+    HFONT font = CreateFont(13, 0, 0, 0, 0, ANSI_CHARSET, NULL, NULL, NULL, NULL, NULL, NULL, NULL, _T("Segoe UI"));
+    HGDIOBJ old = SelectObject(_canvas[_canvasUpdateLock], font);
+
+    for (int x = _offset.x % (2 * _step) - 2 * _step; x <= _size.cx; x += _step * 2) {
+        drawLine({ x, _offset.y - 5 }, { x, _offset.y + 5 });
+        drawLine({ x + _step, _offset.y - 3 }, { x + _step, _offset.y + 3 });
+
+        std::string num = std::to_string((x - _offset.x) / _step * _divisionPrice);
+        RECT rc = { x - _step * 2, _size.cy - _offset.y + 5, x + _step * 2, _size.cy - _offset.y + 5 + 25};
+
+        DrawTextA(_canvas[_canvasUpdateLock], num.c_str(), num.length(), &rc, DT_CENTER | DT_EDITCONTROL | DT_WORDBREAK);
+    }
+
+    for (int y = _offset.y % (2 * _step) - 2 * _step; y <= _size.cy; y += _step * 2) {
+        drawLine({ _offset.x - 5, y }, { _offset.x + 5, y });
+        drawLine({ _offset.x - 3, y + _step }, { _offset.x + 3, y + _step });
+
+        if (y == _offset.y) 
+            continue;
+
+        std::string num = std::to_string((y - _offset.y) / _step * _divisionPrice);
+        RECT rc = { _offset.x - num.length() * 8 - 10, _size.cy - y - 5, _offset.x - 10, _size.cy - y + 20 };
+
+        DrawTextA(_canvas[_canvasUpdateLock], num.c_str(), num.length(), &rc, DT_RIGHT | DT_EDITCONTROL | DT_WORDBREAK);
+    }
+
+    SelectObject(_canvas[_canvasUpdateLock], old);
+    DeleteObject(font);
 }
 
 void Plotter::setColor(COLORREF color) {
@@ -232,4 +290,9 @@ void Plotter::endPaint() {
 
 HDC& Plotter::getDC() {
     return _canvas[0];
+}
+
+void Plotter::getMousePos(POINT& pos) {
+    GetCursorPos(&pos);
+    ScreenToClient(_hWnd, &pos);
 }

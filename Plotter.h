@@ -5,6 +5,7 @@
 #include <cassert>
 #include <tchar.h>
 #include <iostream>
+#include <string>
 
 class Plotter {
 private:
@@ -30,9 +31,11 @@ private:
 
 	bool registerClass(LPCTSTR className);
 
+	void drawCursorCoords();
 	void drawField();
 	void drawGrid();
 	void drawAxes();
+	void signAxes();
 	void drawLine(POINT start, POINT end);
 	void setColor(COLORREF color);
 
@@ -40,9 +43,11 @@ public:
 	Plotter(LPCTSTR name, POINT pos, SIZE size, HWND hPWnd = NULL, HINSTANCE hInst = GetModuleHandle(NULL));
 	~Plotter();
 
+	void redraw();
 	void clearField();
 	void beginPaint();
 	void endPaint();
 
 	HDC& getDC();
+	void getMousePos(POINT& pos);
 };
