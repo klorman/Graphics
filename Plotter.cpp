@@ -5,6 +5,9 @@ Plotter::Plotter(LPCTSTR name, POINT pos, SIZE size, HWND hPWnd /*= NULL*/, HINS
     _hInst(hInst),
     _hWnd(NULL),
     _canvas(),
+    _canvasUpdateLock(0),
+    _bmp(NULL),
+    _stockBmp(NULL),
     _step(20),
     _offset({ (long) round(size.cx / 2), (long) round(size.cy / 2) })
 {
@@ -31,10 +34,14 @@ Plotter::Plotter(LPCTSTR name, POINT pos, SIZE size, HWND hPWnd /*= NULL*/, HINS
     _canvas[0] = GetDC(_hWnd);
     _canvas[1] = CreateCompatibleDC(_canvas[0]);
 
+    _bmp = CreateCompatibleBitmap(_canvas[0], _size.cx, _size.cy);
+
     clearField();
 }
 
 Plotter::~Plotter() {
+    DeleteObject(_bmp);
+
     ReleaseDC(_hWnd, _canvas[0]);
     ReleaseDC(_hWnd, _canvas[1]);
 
@@ -121,9 +128,13 @@ void Plotter::onMouseMove(POINT pos) {
 }
 
 void Plotter::clearField() {
-    InvalidateRect(_hWnd, NULL, TRUE);
+    beginPaint();
+
+    Rectangle(_canvas[_canvasUpdateLock], -1, -1, _size.cx + 1, _size.cy + 1);
 
     drawField();
+
+    endPaint();
 }
 
 void Plotter::drawField() {
@@ -152,17 +163,31 @@ void Plotter::drawAxes() {
 }
 
 void Plotter::drawLine(POINT start, POINT end) {
-    MoveToEx(_canvas[0], start.x, _size.cy - start.y, NULL);
-    LineTo(_canvas[0], end.x, _size.cy - end.y);
+    MoveToEx(_canvas[_canvasUpdateLock], start.x, _size.cy - start.y, NULL);
+    LineTo(_canvas[_canvasUpdateLock], end.x, _size.cy - end.y);
     UpdateWindow(_hWnd);
 }
 
 void Plotter::setColor(COLORREF color) {
     HGDIOBJ obj = CreatePen(PS_SOLID, 1, color);
 
-    obj = SelectPen(_canvas[0], obj);
+    obj = SelectPen(_canvas[_canvasUpdateLock], obj);
 
     DeleteObject(obj);
+}
+
+void Plotter::beginPaint() {
+    _canvasUpdateLock = 1;
+
+    _stockBmp = (HBITMAP)SelectObject(_canvas[1], _bmp);
+}
+
+void Plotter::endPaint() {
+    _canvasUpdateLock = 0;
+
+    BitBlt(_canvas[0], 0, 0, _size.cx, _size.cy, _canvas[1], 0, 0, SRCCOPY);
+
+    SelectObject(_canvas[1], _stockBmp);
 }
 
 HDC& Plotter::getDC() {

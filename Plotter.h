@@ -12,6 +12,9 @@ private:
 	HINSTANCE _hInst;
 	HWND _hWnd;
 	HDC _canvas[2];
+	int _canvasUpdateLock;
+	HBITMAP _bmp,
+            _stockBmp;
 
 	int _step;
 	POINT _offset;
@@ -30,10 +33,12 @@ private:
 	void setColor(COLORREF color);
 
 public:
-	void clearField();
-
 	Plotter(LPCTSTR name, POINT pos, SIZE size, HWND hPWnd = NULL, HINSTANCE hInst = GetModuleHandle(NULL));
 	~Plotter();
+
+	void clearField();
+	void beginPaint();
+	void endPaint();
 
 	HDC& getDC();
 };
