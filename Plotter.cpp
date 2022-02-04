@@ -136,14 +136,18 @@ void Plotter::onScroll(short delta) {
     POINT mousePos = {};
     GetCursorPos(&mousePos);
     ScreenToClient(_hWnd, &mousePos);
+    mousePos = {
+        mousePos.x,
+        _size.cy - mousePos.y
+    };
 
     assert(delta != 0);
     int deltaStep = 2 * (delta / abs(delta)); //(short) (delta / 60); // = 2
-    int k = 1 - (_step + deltaStep) / _step;
+    float k = (float) (_step + deltaStep) / _step;
 
     _offset = {
-        _offset.x + (mousePos.x - _offset.x) * k,
-        _offset.y + (mousePos.y - _offset.y) * k
+        mousePos.x + (LONG) ((_offset.x - mousePos.x) * k),
+        mousePos.y + (LONG) ((_offset.y - mousePos.y) * k)
     };
 
     _step += deltaStep;
