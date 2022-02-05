@@ -1,26 +1,32 @@
 #pragma once
 
 #include <Windows.h>
-#include <windowsx.h>
 #include <cassert>
 #include <tchar.h>
+#include <vector>
 #include <iostream>
 #include <string>
+#include "Painter.h"
+
+struct Graph {
+	std::vector<POINT> points;
+	COLORREF           color;
+	BOOL               connectPoints;
+};
 
 class Plotter {
 private:
-	SIZE _size;
-	HINSTANCE _hInst;
-	HWND _hWnd;
-	HDC _canvas[2];
-	int _canvasUpdateLock;
-	HBITMAP _bmp,
-            _stockBmp;
+	SIZE               _size;
+	HINSTANCE          _hInst;
+	HWND               _hWnd;
+	Painter*           _painter;
+	std::vector<Graph> _graphics;
 
-	const int INITIALSTEP = 40;
+	const int      INITIALSTEP     = 40;
+	const COLORREF BACKGROUNDCOLOR = RGB(255, 255, 255);
 
-	int _step;
-	int _divisionPrice;
+	int   _step;
+	int   _divisionPrice;
 	POINT _offset;
 
 	static LRESULT CALLBACK PlotterProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -36,18 +42,18 @@ private:
 	void drawGrid();
 	void drawAxes();
 	void signAxes();
-	void drawLine(POINT start, POINT end);
-	void setColor(COLORREF color);
+	void drawPoint(const POINT& point, LONG r);
 
 public:
-	Plotter(LPCTSTR name, POINT pos, SIZE size, HWND hPWnd = NULL, HINSTANCE hInst = GetModuleHandle(NULL));
+	Plotter(LPCTSTR name, const POINT& pos, const SIZE& size, HWND hPWnd = NULL, HINSTANCE hInst = GetModuleHandle(NULL));
 	~Plotter();
 
 	void redraw();
 	void clearField();
-	void beginPaint();
-	void endPaint();
 
-	HDC& getDC();
-	void getMousePos(POINT& pos);
+	void plotGraphs();
+	void plotByPoint(int i);
+	void addGraph(const Graph& graph);
+	
+	void getMousePos(POINT* pos);
 };

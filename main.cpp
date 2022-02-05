@@ -1,7 +1,13 @@
-#include "Plotter.h"
+#include "Window.h"
 
 int main() {
-    Plotter* plt = new Plotter(_T("Plot"), { 0, 0 }, { 800, 600 });
+    Window* wnd = new Window();
+    //Plotter* plt = new Plotter(_T("Plot"), { 0, 0 }, { 800, 600 });
+
+    //plt->addGraph({ {{-1,3},{0,0},{0,2},{2,5},{5,6}},RGB(255,0,255), 1 });
+    //plt->addGraph({ {{0,3},{2,7},{3,-4},{3,-2},{22,-3}},RGB(255,0,0), 1 });
+    //
+    //plt->redraw();
 
     MSG message;
 

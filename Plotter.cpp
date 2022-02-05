@@ -1,23 +1,18 @@
 #include "Plotter.h"
 
-Plotter::Plotter(LPCTSTR name, POINT pos, SIZE size, HWND hPWnd /*= NULL*/, HINSTANCE hInst /*= GetModuleHandle(NULL)*/) :
+Plotter::Plotter(LPCTSTR name, const POINT& pos, const SIZE& size, HWND hPWnd /*= NULL*/, HINSTANCE hInst /*= GetModuleHandle(NULL)*/) :
     _size(size),
     _hInst(hInst),
     _hWnd(NULL),
-    _canvas(),
-    _canvasUpdateLock(0),
-    _bmp(NULL),
-    _stockBmp(NULL),
+    _painter(nullptr),
+    _graphics({}),
     _step(INITIALSTEP),
     _divisionPrice(1),
     _offset({ (long) round(size.cx / 2), (long) round(size.cy / 2) })
 {
     assert(registerClass(name));
 
-    DWORD style = WS_VISIBLE | WS_CAPTION | WS_SYSMENU;
-    if (hPWnd != NULL) {
-        style |= WS_CHILD;
-    }
+    DWORD style = (hPWnd != NULL)? WS_VISIBLE | WS_CHILD | WS_BORDER : WS_VISIBLE | WS_CAPTION | WS_SYSMENU;
 
     _hWnd = CreateWindow(
         name,
@@ -25,26 +20,23 @@ Plotter::Plotter(LPCTSTR name, POINT pos, SIZE size, HWND hPWnd /*= NULL*/, HINS
         style,
         pos.x,
         pos.y,
-        size.cx + 14,
-        size.cy + 39,
-        NULL,
+        (hPWnd != NULL)? size.cx : size.cx + 14,
+        (hPWnd != NULL)? size.cy : size.cy + 39,
+        hPWnd,
         NULL,
         _hInst,
         this);
 
-    _canvas[0] = GetDC(_hWnd);
-    _canvas[1] = CreateCompatibleDC(_canvas[0]);
-
-    _bmp = CreateCompatibleBitmap(_canvas[0], _size.cx, _size.cy);
+    _painter = new Painter(GetDC(_hWnd), size);
 
     clearField();
 }
 
 Plotter::~Plotter() {
-    DeleteObject(_bmp);
+    delete _painter;
 
-    ReleaseDC(_hWnd, _canvas[0]);
-    ReleaseDC(_hWnd, _canvas[1]);
+    ReleaseDC(_hWnd, _painter->getDC(0));
+    ReleaseDC(_hWnd, _painter->getDC(1));
 
     DestroyWindow(_hWnd);
 }
@@ -84,30 +76,11 @@ LRESULT CALLBACK Plotter::PlotterProc(HWND hWnd, UINT message, WPARAM wParam, LP
 }
 
 LRESULT CALLBACK Plotter::OnMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-    switch (message)
-    {
-    case WM_COMMAND:
-        switch (LOWORD(wParam)) {
-
-        default:
-            break;
-        }
-        break;
-
-    case WM_MOUSEMOVE:
-        onMouseMove({ LOWORD(lParam), HIWORD(lParam) });
-        break;
-
-    case WM_MOUSEWHEEL:
-        onScroll(GET_WHEEL_DELTA_WPARAM(wParam));
-        break;
-
-    case WM_DESTROY:
-        PostQuitMessage(WM_QUIT);
-        break;
-
-    default:
-        return DefWindowProc(hWnd, message, wParam, lParam);
+    switch (message) {
+    case WM_MOUSEMOVE:  onMouseMove({ LOWORD(lParam), HIWORD(lParam) });     break;
+    case WM_MOUSEWHEEL: onScroll(GET_WHEEL_DELTA_WPARAM(wParam));            break;
+    case WM_DESTROY:    PostQuitMessage(WM_QUIT);                            break;
+    default:            return DefWindowProc(hWnd, message, wParam, lParam);
     }
 
     return FALSE;
@@ -142,7 +115,7 @@ void Plotter::onScroll(short delta) {
         return;
 
     POINT mousePos = {};
-    getMousePos(mousePos);
+    getMousePos(&mousePos);
 
     float k = (float) (_step + deltaStep) / _step;
 
@@ -168,34 +141,58 @@ void Plotter::onScroll(short delta) {
     redraw();
 }
 
+void Plotter::plotGraphs() {
+    for (int i = 0; i < _graphics.size(); ++i)
+        plotByPoint(i);
+}
+
+void Plotter::plotByPoint(int i) {
+    _painter->setColor    (_graphics[i].color, 2);
+    _painter->setFillColor(_graphics[i].color);
+
+    for (int point = 0; point < _graphics[i].points.size(); ++point)
+        drawPoint(_graphics[i].points[point], 4);
+
+    if (_graphics[i].connectPoints) {
+        for (int point = 1; point < _graphics[i].points.size(); ++point) {
+            _painter->drawLine(
+                { _graphics[i].points[point - 1].x * _step / _divisionPrice + _offset.x, _graphics[i].points[point - 1].y * _step / _divisionPrice + _offset.y },
+                { _graphics[i].points[point    ].x * _step / _divisionPrice + _offset.x, _graphics[i].points[point    ].y * _step / _divisionPrice + _offset.y }
+            );
+        }
+    }
+}
+
 void Plotter::drawCursorCoords() {
     POINT pos = {};
-    getMousePos(pos);
+    getMousePos(&pos);
 
     HFONT font = CreateFont(15, 0, 0, 0, FW_MEDIUM, ANSI_CHARSET, NULL, NULL, NULL, NULL, NULL, NULL, NULL, _T("Segoe UI"));
-    HGDIOBJ old = SelectObject(_canvas[_canvasUpdateLock], font);
+    HGDIOBJ old = SelectObject(_painter->getDC(), font);
 
     std::string coords = "(" + std::to_string((LONG)round((float)(pos.x - _offset.x) / _step * _divisionPrice)) + "; " + std::to_string((LONG)round((float)(_size.cy - pos.y - _offset.y) / _step * _divisionPrice)) + ")";
     RECT rc = { pos.x + 10, pos.y + 10, _offset.x - 10, pos.y + 20 };
 
-    DrawTextA(_canvas[_canvasUpdateLock], coords.c_str(), coords.length(), &rc, DT_LEFT | DT_NOCLIP);
+    DrawTextA(_painter->getDC(), coords.c_str(), coords.length(), &rc, DT_LEFT | DT_NOCLIP);
 
-    SelectObject(_canvas[_canvasUpdateLock], old);
+    SelectObject(_painter->getDC(), old);
     DeleteObject(font);
 }
 
 void Plotter::redraw() {
-    beginPaint();
+    _painter->beginPaint();
 
     clearField();
 
-    //drawGraph();
+    plotGraphs();
 
-    endPaint();
+    _painter->endPaint();
 }
 
 void Plotter::clearField() {
-    Rectangle(_canvas[_canvasUpdateLock], -1, -1, _size.cx + 1, _size.cy + 1);
+    _painter->setFillColor(BACKGROUNDCOLOR);
+
+    Rectangle(_painter->getDC(), -1, -1, _size.cx + 1, _size.cy + 1);
 
     drawField();
 
@@ -209,49 +206,33 @@ void Plotter::drawField() {
 }
 
 void Plotter::drawGrid() {
-    setColor(RGB(200, 200, 200));
+    _painter->setColor(RGB(200, 200, 200));
 
     for (int y = _offset.y % _step - _step; y <= _size.cy; y += _step) {
-        drawLine({ 0, y }, { _size.cx, y });
+        _painter->drawLine({ 0, y }, { _size.cx, y });
     }
 
     for (int x = _offset.x % _step; x <= _size.cx; x += _step) {
-        drawLine({ x, 0 }, { x, _size.cy });
+        _painter->drawLine({ x, 0 }, { x, _size.cy });
     }
 }
 
 void Plotter::drawAxes() {
-    setColor(RGB(0, 0, 0));
+    _painter->setColor(RGB(0, 0, 0));
 
-    drawLine({ _offset.x, 0 }, { _offset.x, _size.cy });
-    drawLine({ 0, _offset.y }, { _size.cx, _offset.y });
+    _painter->drawLine({ _offset.x, 0 }, { _offset.x, _size.cy });
+    _painter->drawLine({ 0, _offset.y }, { _size.cx, _offset.y });
 
     signAxes();
 }
 
-void Plotter::drawLine(POINT start, POINT end) {
-    MoveToEx(_canvas[_canvasUpdateLock], start.x, _size.cy - start.y, NULL);
-    LineTo(_canvas[_canvasUpdateLock], end.x, _size.cy - end.y);
-    UpdateWindow(_hWnd);
-}
-
 void Plotter::signAxes() {
     HFONT font = CreateFont(13, 0, 0, 0, 0, ANSI_CHARSET, NULL, NULL, NULL, NULL, NULL, NULL, NULL, _T("Segoe UI"));
-    HGDIOBJ old = SelectObject(_canvas[_canvasUpdateLock], font);
-
-    for (int x = _offset.x % (2 * _step) - 2 * _step; x <= _size.cx; x += _step * 2) {
-        drawLine({ x, _offset.y - 5 }, { x, _offset.y + 5 });
-        drawLine({ x + _step, _offset.y - 3 }, { x + _step, _offset.y + 3 });
-
-        std::string num = std::to_string((x - _offset.x) / _step * _divisionPrice);
-        RECT rc = { x - _step * 2, _size.cy - _offset.y + 5, x + _step * 2, _size.cy - _offset.y + 5 + 25};
-
-        DrawTextA(_canvas[_canvasUpdateLock], num.c_str(), num.length(), &rc, DT_CENTER | DT_EDITCONTROL | DT_WORDBREAK);
-    }
+    HGDIOBJ old = SelectObject(_painter->getDC(), font);
 
     for (int y = _offset.y % (2 * _step) - 2 * _step; y <= _size.cy; y += _step * 2) {
-        drawLine({ _offset.x - 5, y }, { _offset.x + 5, y });
-        drawLine({ _offset.x - 3, y + _step }, { _offset.x + 3, y + _step });
+        _painter->drawLine({ _offset.x - 5, y }, { _offset.x + 5, y });
+        _painter->drawLine({ _offset.x - 3, y + _step }, { _offset.x + 3, y + _step });
 
         if (y == _offset.y) 
             continue;
@@ -259,40 +240,38 @@ void Plotter::signAxes() {
         std::string num = std::to_string((y - _offset.y) / _step * _divisionPrice);
         RECT rc = { _offset.x - num.length() * 8 - 10, _size.cy - y - 5, _offset.x - 10, _size.cy - y + 20 };
 
-        DrawTextA(_canvas[_canvasUpdateLock], num.c_str(), num.length(), &rc, DT_RIGHT | DT_EDITCONTROL | DT_WORDBREAK);
+        DrawTextA(_painter->getDC(), num.c_str(), num.length(), &rc, DT_RIGHT | DT_EDITCONTROL | DT_WORDBREAK);
     }
 
-    SelectObject(_canvas[_canvasUpdateLock], old);
+    for (int x = _offset.x % (2 * _step) - 2 * _step; x <= _size.cx; x += _step * 2) {
+        _painter->drawLine({ x, _offset.y - 5 }, { x, _offset.y + 5 });
+        _painter->drawLine({ x + _step, _offset.y - 3 }, { x + _step, _offset.y + 3 });
+
+        std::string num = std::to_string((x - _offset.x) / _step * _divisionPrice);
+        RECT rc = { x - _step * 2, _size.cy - _offset.y + 5, x + _step * 2, _size.cy - _offset.y + 5 + 25};
+
+        DrawTextA(_painter->getDC(), num.c_str(), num.length(), &rc, DT_CENTER | DT_EDITCONTROL | DT_WORDBREAK);
+    }
+
+
+    SelectObject(_painter->getDC(), old);
     DeleteObject(font);
 }
 
-void Plotter::setColor(COLORREF color) {
-    HGDIOBJ obj = CreatePen(PS_SOLID, 1, color);
+void Plotter::drawPoint(const POINT& point, LONG r) {
+    POINT center = {
+        point.x * _step / _divisionPrice + _offset.x,
+        point.y * _step / _divisionPrice + _offset.y
+    };
 
-    obj = SelectPen(_canvas[_canvasUpdateLock], obj);
-
-    DeleteObject(obj);
+    _painter->drawCircle(center, r);
 }
 
-void Plotter::beginPaint() {
-    _canvasUpdateLock = 1;
-
-    _stockBmp = (HBITMAP)SelectObject(_canvas[1], _bmp);
+void Plotter::addGraph(const Graph& graph) {
+    _graphics.push_back(graph);
 }
 
-void Plotter::endPaint() {
-    _canvasUpdateLock = 0;
-
-    BitBlt(_canvas[0], 0, 0, _size.cx, _size.cy, _canvas[1], 0, 0, SRCCOPY);
-
-    SelectObject(_canvas[1], _stockBmp);
-}
-
-HDC& Plotter::getDC() {
-    return _canvas[0];
-}
-
-void Plotter::getMousePos(POINT& pos) {
-    GetCursorPos(&pos);
-    ScreenToClient(_hWnd, &pos);
+void Plotter::getMousePos(POINT* pos) {
+    GetCursorPos(pos);
+    ScreenToClient(_hWnd, pos);
 }
