@@ -11,6 +11,11 @@ int main() {
 
     MSG message;
 
+    //Sorts<EvilInt> s = {};
+    //s.generateArray(50);
+    //s.quickSort(0, 49);
+    //s.printArray();
+
     while (GetMessage(&message, NULL, NULL, NULL)) {
         TranslateMessage(&message);
         DispatchMessage(&message);

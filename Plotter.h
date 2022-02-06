@@ -8,6 +8,10 @@
 #include <string>
 #include "Painter.h"
 
+enum GRAPHICS {
+	BUBBLE, SELECTION, QUICK, RADIX, BOGO
+};
+
 struct Graph {
 	std::vector<POINT> points;
 	COLORREF           color;
@@ -54,6 +58,9 @@ public:
 	void plotGraphs();
 	void plotByPoint(int i);
 	void addGraph(const Graph& graph);
+	void editGraphPoints(GRAPHICS name, const std::vector<POINT>& points);
+	int  getNumberOfGraphs();
 	
 	void getMousePos(POINT* pos);
+	bool isMouseOnWnd();
 };

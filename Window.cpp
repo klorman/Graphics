@@ -1,9 +1,10 @@
 #include "Window.h"
 
 Window::Window() :
-    _hInst(GetModuleHandle(NULL)),
-    _hWnd(NULL),
-    _plt(nullptr)
+    _hInst (GetModuleHandle(NULL)),
+    _hWnd  (NULL),
+    _plt   (nullptr),
+    _sorts (new Sorts<EvilInt>)
 {
     assert(registerClass());
 
@@ -31,6 +32,7 @@ Window::Window() :
 
 Window::~Window() {
     delete _plt;
+    delete _sorts;
 
     DestroyWindow(_hWnd);
 
@@ -66,16 +68,16 @@ LRESULT CALLBACK Window::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
         pWin = (Window*)GetWindowLong(hWnd, GWL_USERDATA);
 
     if (pWin)
-        return pWin->processMessage(hWnd, message, wParam, lParam);
+        return pWin->onMessage(hWnd, message, wParam, lParam);
 
     return 0;
 }
 
-LRESULT CALLBACK Window::processMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK Window::onMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
-    case WM_COMMAND: onCommand(LOWORD(wParam));                           break;
-    case WM_DESTROY: PostQuitMessage(0);                                  break;
-    default:         return DefWindowProc(hWnd, message, wParam, lParam);
+    case WM_COMMAND  : onCommand(LOWORD(wParam));                           break;
+    case WM_DESTROY  : PostQuitMessage(0);                                  break;
+    default          : return DefWindowProc(hWnd, message, wParam, lParam);
     }
 
     return FALSE;
@@ -83,8 +85,15 @@ LRESULT CALLBACK Window::processMessage(HWND hWnd, UINT message, WPARAM wParam, 
 
 void Window::onCommand(WORD id) {
     switch (id) {
-    case IDC_CLOSE: PostQuitMessage(0); break;
-    default:                            break;
+    case IDC_CLOSE             : PostQuitMessage(0);                                                                                              break;
+    case IDC_CLEAR             : for (int i = 0; i < _plt->getNumberOfGraphs(); ++i) _plt->editGraphPoints((GRAPHICS) i, {}); _plt->clearField(); break;
+    case IDC_RECALCSELECTED    : recalcSelected();  _plt->redraw();                                                                               break;
+    case IDC_RECALCBUBBLE      : recalcBubble();    _plt->redraw();                                                                               break;
+    case IDC_RECALCSELECTION   : recalcSelection(); _plt->redraw();                                                                               break;
+    case IDC_RECALCQUICK       : recalcQuick();     _plt->redraw();                                                                               break;
+    case IDC_RECALCRADIX       : recalcRadix();     _plt->redraw();                                                                               break;
+    case IDC_RECALCBOGO        : recalcBogo();      _plt->redraw();                                                                               break;
+    default                    :                                                                                                                  break;
     }
 }
 
@@ -94,13 +103,114 @@ void Window::createGUI() {
     _plt = new Plotter(_T("Plot"), { 14, 14 }, { WNDSIZE.cx - 14 * 2, 500 }, _hWnd, _hInst);
     _plt->redraw();
 
-    CreateWindow(WC_BUTTON, _T("Закрыть"), WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, WNDSIZE.cx - 100 - 14, WNDSIZE.cy - 25 - 14, 100, 25, _hWnd, (HMENU)IDC_CLOSE, _hInst, NULL);
-    SendMessage(GetDlgItem(_hWnd, IDC_CLOSE), WM_SETFONT, WPARAM(hFont), true);
-    //createButton(_T("< Убрать"), getRemoveButtonPos(boxSize), { BUTTON_WIDTH, BUTTON_HEIGHT }, (HMENU)ID_BUTTON_REMOVE);
-    //createButton(_T("Выгрузить"), getUploadButtonPos(clientSize), { BUTTON_WIDTH, BUTTON_HEIGHT }, (HMENU)ID_BUTTON_UPLOAD);
-    //createCheckBox(_T("Добавлять файлы любой вложенности"), { INDENT, clientSize.y - INDENT - BUTTON_HEIGHT }, { BUTTON_WIDTH * 3, BUTTON_HEIGHT }, (HMENU)ID_CHECKBOX_ADDING_MODE);
+    _plt->addGraph({ {}, RGB(255, 0, 0),   false });
+    _plt->addGraph({ {}, RGB(255, 0, 255), false });
+    _plt->addGraph({ {}, RGB(0, 0, 255),   false });
+    _plt->addGraph({ {}, RGB(0, 255, 0),   false });
+    _plt->addGraph({ {}, RGB(0, 255, 255), false });
+
+    CreateWindow(WC_BUTTON, _T("Закрыть"),               WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, WNDSIZE.cx - 100 - 14, WNDSIZE.cy - 28 - 14, 100, 28, _hWnd, (HMENU)IDC_CLOSE,          _hInst, NULL);
+    CreateWindow(WC_BUTTON, _T("Пересчитать выбранные"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, WNDSIZE.cx - 300 - 28, WNDSIZE.cy - 28 - 14, 200, 28, _hWnd, (HMENU)IDC_RECALCSELECTED, _hInst, NULL);
+    CreateWindow(WC_BUTTON, _T("Очистить"),              WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, WNDSIZE.cx - 400 - 42, WNDSIZE.cy - 28 - 14, 100, 28, _hWnd, (HMENU)IDC_CLEAR,          _hInst, NULL);
+
+    CreateWindow(WC_BUTTON, _T("Пересчитать"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, WNDSIZE.cx / 2 - 14 - 100, 500 + 28,          100, 28, _hWnd, (HMENU)IDC_RECALCBUBBLE,    _hInst, NULL);
+    CreateWindow(WC_BUTTON, _T("Пересчитать"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, WNDSIZE.cx / 2 - 14 - 100, 500 + 42 + 14 * 2, 100, 28, _hWnd, (HMENU)IDC_RECALCSELECTION, _hInst, NULL);
+    CreateWindow(WC_BUTTON, _T("Пересчитать"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, WNDSIZE.cx / 2 + 14,       500 + 28,          100, 28, _hWnd, (HMENU)IDC_RECALCQUICK,     _hInst, NULL);
+    CreateWindow(WC_BUTTON, _T("Пересчитать"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, WNDSIZE.cx / 2 + 14,       500 + 42 + 14 * 2, 100, 28, _hWnd, (HMENU)IDC_RECALCRADIX,     _hInst, NULL);
+    CreateWindow(WC_BUTTON, _T("Пересчитать"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, WNDSIZE.cx / 2 - 14 - 100, 500 + 56 + 14 * 4, 100, 28, _hWnd, (HMENU)IDC_RECALCBOGO,      _hInst, NULL);
+
+    CreateWindow(WC_BUTTON, _T("Bubble sort"),    WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_LEFTTEXT, 14,                   500 + 28         , (WNDSIZE.cx - 200 - 14 * 6) / 2, 28, _hWnd, (HMENU)IDC_CHECKBUBBLESORT, _hInst, NULL);
+    CreateWindow(WC_BUTTON, _T("Selection sort"), WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_LEFTTEXT, 14,                   500 + 42 + 14 * 2, (WNDSIZE.cx - 200 - 14 * 6) / 2, 28, _hWnd, (HMENU)IDC_CHECKSELECTIONSORT, _hInst, NULL);
+    CreateWindow(WC_BUTTON, _T("Quick sort"),     WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_RIGHT   , WNDSIZE.cx / 2 + 128, 500 + 28         , (WNDSIZE.cx - 200 - 14 * 6) / 2, 28, _hWnd, (HMENU)IDC_CHECKQUICKSORT, _hInst, NULL);
+    CreateWindow(WC_BUTTON, _T("Radix sort"),     WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_RIGHT   , WNDSIZE.cx / 2 + 128, 500 + 42 + 14 * 2, (WNDSIZE.cx - 200 - 14 * 6) / 2, 28, _hWnd, (HMENU)IDC_CHECKRADIXSORT, _hInst, NULL);
+    CreateWindow(WC_BUTTON, _T("Bogo sort"),      WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX | BS_LEFTTEXT, 14,                   500 + 56 + 14 * 4, (WNDSIZE.cx - 200 - 14 * 6) / 2, 28, _hWnd, (HMENU)IDC_CHECKBOGOSORT, _hInst, NULL);
+
+    for (int ID = IDC_CLOSE; ID <= IDC_CHECKBOGOSORT; ++ID)
+        SendMessage(GetDlgItem(_hWnd, ID), WM_SETFONT, WPARAM(hFont), true);
 }
 
+void Window::recalcSelected() {
+    for (int ID = IDC_CHECKBUBBLESORT; ID <= IDC_CHECKBOGOSORT; ++ID)
+        if (SendDlgItemMessage(_hWnd, ID, BM_GETCHECK, NULL, NULL) == BST_CHECKED) {
+            switch (ID) {
+            case IDC_CHECKBUBBLESORT     : recalcBubble();    break;
+            case IDC_CHECKSELECTIONSORT  : recalcSelection(); break;
+            case IDC_CHECKQUICKSORT      : recalcQuick();     break;
+            case IDC_CHECKRADIXSORT      : recalcRadix();     break;
+            case IDC_CHECKBOGOSORT       : recalcBogo();      break;
+            }
+        }
+}
+
+void Window::recalcBubble() {
+    std::vector<POINT> points = {};
+    int numberOfComparisons = 0;
+    
+    for (int i = 5; numberOfComparisons < 50000; i += 5) {
+        _sorts->generateArray(i);
+        _sorts->bubbleSort();
+
+        points.push_back({ _sorts->getNumberOfAssignments(), numberOfComparisons = _sorts->getNumberOfComparisons() });
+    }
+
+    _plt->editGraphPoints(BUBBLE, points);
+}
+
+void Window::recalcSelection() {
+    std::vector<POINT> points = {};
+    int numberOfComparisons = 0;
+
+    for (int i = 5; numberOfComparisons < 50000; i += 5) {
+        _sorts->generateArray(i);
+        _sorts->selectionSort();
+
+        points.push_back({ _sorts->getNumberOfAssignments(), numberOfComparisons = _sorts->getNumberOfComparisons() });
+    }
+
+    _plt->editGraphPoints(SELECTION, points);
+}
+
+void Window::recalcQuick() {
+    std::vector<POINT> points = {};
+    int numberOfComparisons = 0;
+
+    for (int i = 5; numberOfComparisons < 50000; i += 5) {
+        _sorts->generateArray(i);
+        _sorts->quickSort(0, i - 1);
+
+        points.push_back({ _sorts->getNumberOfAssignments(), numberOfComparisons = _sorts->getNumberOfComparisons() });
+    }
+
+    _plt->editGraphPoints(QUICK, points);
+}
+
+void Window::recalcRadix() {
+    std::vector<POINT> points = {};
+    int numberOfComparisons = 0;
+
+    for (int i = 5; i < 1000; i += 5) {
+        _sorts->generateArray(i);
+        _sorts->radixSort();
+
+        points.push_back({ _sorts->getNumberOfAssignments(), numberOfComparisons = _sorts->getNumberOfComparisons() });
+    }
+
+    _plt->editGraphPoints(RADIX, points);
+}
+
+void Window::recalcBogo() {
+    std::vector<POINT> points = {};
+    int numberOfComparisons = 0;
+
+    for (int i = 2; numberOfComparisons < 50000; i += 1) {
+        _sorts->generateArray(i);
+        _sorts->bogoSort();
+
+        points.push_back({ _sorts->getNumberOfAssignments(), numberOfComparisons = _sorts->getNumberOfComparisons() });
+    }
+
+    _plt->editGraphPoints(BOGO, points);
+}
 
 HINSTANCE Window::get_hInst() {
     return _hInst;

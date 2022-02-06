@@ -186,6 +186,9 @@ void Plotter::redraw() {
 
     plotGraphs();
 
+    if (isMouseOnWnd())
+        drawCursorCoords();
+
     _painter->endPaint();
 }
 
@@ -195,8 +198,6 @@ void Plotter::clearField() {
     Rectangle(_painter->getDC(), -1, -1, _size.cx + 1, _size.cy + 1);
 
     drawField();
-
-    drawCursorCoords();
 }
 
 void Plotter::drawField() {
@@ -271,7 +272,22 @@ void Plotter::addGraph(const Graph& graph) {
     _graphics.push_back(graph);
 }
 
+void Plotter::editGraphPoints(GRAPHICS name, const std::vector<POINT>& points) {
+    _graphics[name].points = points;
+}
+
+int Plotter::getNumberOfGraphs() {
+    return _graphics.size();
+}
+
 void Plotter::getMousePos(POINT* pos) {
     GetCursorPos(pos);
     ScreenToClient(_hWnd, pos);
+}
+
+bool Plotter::isMouseOnWnd() {
+    POINT pos = {};
+    getMousePos(&pos);
+
+    return pos.x > 0 && pos.x < _size.cx && pos.y > 0 && pos.y < _size.cy;
 }
