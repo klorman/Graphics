@@ -87,12 +87,12 @@ void Window::onCommand(WORD id) {
     switch (id) {
     case IDC_CLOSE             : PostQuitMessage(0);                                                                                              break;
     case IDC_CLEAR             : for (int i = 0; i < _plt->getNumberOfGraphs(); ++i) _plt->editGraphPoints((GRAPHICS) i, {}); _plt->clearField(); break;
-    case IDC_RECALCSELECTED    : recalcSelected();  _plt->redraw();                                                                               break;
-    case IDC_RECALCBUBBLE      : recalcBubble();    _plt->redraw();                                                                               break;
-    case IDC_RECALCSELECTION   : recalcSelection(); _plt->redraw();                                                                               break;
-    case IDC_RECALCQUICK       : recalcQuick();     _plt->redraw();                                                                               break;
-    case IDC_RECALCRADIX       : recalcRadix();     _plt->redraw();                                                                               break;
-    case IDC_RECALCBOGO        : recalcBogo();      _plt->redraw();                                                                               break;
+    case IDC_RECALCSELECTED    : recalcSelected();      _plt->redraw();                                                                           break;
+    case IDC_RECALCBUBBLE      : recalcSort(BUBBLE);    _plt->redraw();                                                                           break;
+    case IDC_RECALCSELECTION   : recalcSort(SELECTION); _plt->redraw();                                                                           break;
+    case IDC_RECALCQUICK       : recalcSort(QUICK);     _plt->redraw();                                                                           break;
+    case IDC_RECALCRADIX       : recalcSort(RADIX);     _plt->redraw();                                                                           break;
+    case IDC_RECALCBOGO        : recalcSort(BOGO);      _plt->redraw();                                                                           break;
     default                    :                                                                                                                  break;
     }
 }
@@ -103,11 +103,11 @@ void Window::createGUI() {
     _plt = new Plotter(_T("Plot"), { 14, 14 }, { WNDSIZE.cx - 14 * 2, 500 }, _hWnd, _hInst);
     _plt->redraw();
 
-    _plt->addGraph({ {}, RGB(255, 0, 0),   false });
-    _plt->addGraph({ {}, RGB(255, 0, 255), false });
-    _plt->addGraph({ {}, RGB(0, 0, 255),   false });
-    _plt->addGraph({ {}, RGB(0, 255, 0),   false });
-    _plt->addGraph({ {}, RGB(0, 255, 255), false });
+    _plt->addGraph({ {}, RGB(255, 0, 0),   true });
+    _plt->addGraph({ {}, RGB(255, 0, 255), true });
+    _plt->addGraph({ {}, RGB(0, 0, 255),   true });
+    _plt->addGraph({ {}, RGB(0, 255, 0),   true });
+    _plt->addGraph({ {}, RGB(0, 255, 255), true });
 
     CreateWindow(WC_BUTTON, _T("Закрыть"),               WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, WNDSIZE.cx - 100 - 14, WNDSIZE.cy - 28 - 14, 100, 28, _hWnd, (HMENU)IDC_CLOSE,          _hInst, NULL);
     CreateWindow(WC_BUTTON, _T("Пересчитать выбранные"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, WNDSIZE.cx - 300 - 28, WNDSIZE.cy - 28 - 14, 200, 28, _hWnd, (HMENU)IDC_RECALCSELECTED, _hInst, NULL);
@@ -133,83 +133,30 @@ void Window::recalcSelected() {
     for (int ID = IDC_CHECKBUBBLESORT; ID <= IDC_CHECKBOGOSORT; ++ID)
         if (SendDlgItemMessage(_hWnd, ID, BM_GETCHECK, NULL, NULL) == BST_CHECKED) {
             switch (ID) {
-            case IDC_CHECKBUBBLESORT     : recalcBubble();    break;
-            case IDC_CHECKSELECTIONSORT  : recalcSelection(); break;
-            case IDC_CHECKQUICKSORT      : recalcQuick();     break;
-            case IDC_CHECKRADIXSORT      : recalcRadix();     break;
-            case IDC_CHECKBOGOSORT       : recalcBogo();      break;
+            case IDC_CHECKBUBBLESORT     : recalcSort(BUBBLE);    break;
+            case IDC_CHECKSELECTIONSORT  : recalcSort(SELECTION); break;
+            case IDC_CHECKQUICKSORT      : recalcSort(QUICK);     break;
+            case IDC_CHECKRADIXSORT      : recalcSort(RADIX);     break;
+            case IDC_CHECKBOGOSORT       : recalcSort(BOGO);      break;
             }
         }
 }
 
-void Window::recalcBubble() {
+void Window::recalcSort(GRAPHICS id) {
     std::vector<POINT> points = {};
     int numberOfComparisons = 0;
     
-    for (int i = 5; numberOfComparisons < 50000; i += 5) {
+    for (int i = 5; numberOfComparisons < 100000; i += 1) {
         _sorts->generateArray(i);
-        _sorts->bubbleSort();
+		_sorts->startSort(id);
 
-        points.push_back({ _sorts->getNumberOfAssignments(), numberOfComparisons = _sorts->getNumberOfComparisons() });
+		numberOfComparisons = _sorts->getNumberOfComparisons();
+
+		if (numberOfComparisons < 100000)
+			points.push_back({ _sorts->getNumberOfAssignments(), numberOfComparisons });
     }
 
-    _plt->editGraphPoints(BUBBLE, points);
-}
-
-void Window::recalcSelection() {
-    std::vector<POINT> points = {};
-    int numberOfComparisons = 0;
-
-    for (int i = 5; numberOfComparisons < 50000; i += 5) {
-        _sorts->generateArray(i);
-        _sorts->selectionSort();
-
-        points.push_back({ _sorts->getNumberOfAssignments(), numberOfComparisons = _sorts->getNumberOfComparisons() });
-    }
-
-    _plt->editGraphPoints(SELECTION, points);
-}
-
-void Window::recalcQuick() {
-    std::vector<POINT> points = {};
-    int numberOfComparisons = 0;
-
-    for (int i = 5; numberOfComparisons < 50000; i += 5) {
-        _sorts->generateArray(i);
-        _sorts->quickSort(0, i - 1);
-
-        points.push_back({ _sorts->getNumberOfAssignments(), numberOfComparisons = _sorts->getNumberOfComparisons() });
-    }
-
-    _plt->editGraphPoints(QUICK, points);
-}
-
-void Window::recalcRadix() {
-    std::vector<POINT> points = {};
-    int numberOfComparisons = 0;
-
-    for (int i = 5; i < 1000; i += 5) {
-        _sorts->generateArray(i);
-        _sorts->radixSort();
-
-        points.push_back({ _sorts->getNumberOfAssignments(), numberOfComparisons = _sorts->getNumberOfComparisons() });
-    }
-
-    _plt->editGraphPoints(RADIX, points);
-}
-
-void Window::recalcBogo() {
-    std::vector<POINT> points = {};
-    int numberOfComparisons = 0;
-
-    for (int i = 2; numberOfComparisons < 50000; i += 1) {
-        _sorts->generateArray(i);
-        _sorts->bogoSort();
-
-        points.push_back({ _sorts->getNumberOfAssignments(), numberOfComparisons = _sorts->getNumberOfComparisons() });
-    }
-
-    _plt->editGraphPoints(BOGO, points);
+    _plt->editGraphPoints(id, points);
 }
 
 HINSTANCE Window::get_hInst() {

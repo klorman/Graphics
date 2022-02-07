@@ -2,9 +2,9 @@
 
 struct EvilInt {
 private:
-	int _value,
-		_numberOfComparisons,
-		_numberOfAssignments;
+	int _value;
+	static int _numberOfComparisons,
+        	   _numberOfAssignments;
 
 public:
 	EvilInt(int i = 0);
@@ -59,7 +59,7 @@ public:
 		return _value;
 	}
 
-
-	int getNumberOfComparisons();
-	int	getNumberOfAssignments();
+	void clearStatistics();
+	int  getNumberOfComparisons();
+	int	 getNumberOfAssignments();
 };

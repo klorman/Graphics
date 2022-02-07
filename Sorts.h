@@ -5,16 +5,19 @@
 #include <algorithm>
 #include <iostream>
 #include <cassert>
+#include <functional>
 
 #include "EvilInt.h"
 
 template<typename Type>
 class Sorts {
 private:
-	Type* _arr;
-	int  _size;
+	Type*                                    _arr;
+	int                                      _size;
+	std::vector<std::function<void(Sorts&)>> _sortsVec;
 
 	int  partition(int low, int high);
+	void recQuickSort(int low, int high);
 	void countSort(Type exp);
 	Type getMax();
 	void shuffle();
@@ -27,25 +30,34 @@ public:
 	void generateArray(int size);
 	void bubbleSort();
 	void selectionSort();
-	void quickSort(int low, int high);
+	void quickSort();
 	void radixSort();
 	void bogoSort();
 
 	int getNumberOfComparisons();
 	int	getNumberOfAssignments();
 
+	void startSort(GRAPHICS id);
 	void printArray();
 };
+
 
 template<typename Type>
 Sorts<Type>::Sorts() :
 	_arr  (nullptr),
-	_size (0)
-{}
+	_size (0),
+	_sortsVec({})
+{ 
+	_sortsVec.push_back(&Sorts::bubbleSort);
+	_sortsVec.push_back(&Sorts::selectionSort);
+	_sortsVec.push_back(&Sorts::quickSort);
+	_sortsVec.push_back(&Sorts::radixSort);
+	_sortsVec.push_back(&Sorts::bogoSort);
+}
 
 template<typename Type>
 Sorts<Type>::~Sorts() {
-	if (_arr != nullptr)
+	if (_arr)
 		delete[] _arr;
 }
 
@@ -67,6 +79,9 @@ void Sorts<Type>::generateArray(int size) {
 
 template<typename Type>
 void Sorts<Type>::bubbleSort() {
+	assert(_arr);
+	_arr[0].clearStatistics();
+
 	for (int i = 0; i < _size - 1; ++i) {
 		for (int j = 0; j < _size - i - 1; ++j) {
 			if (_arr[j] > _arr[j + 1]) {
@@ -78,6 +93,9 @@ void Sorts<Type>::bubbleSort() {
 
 template<typename Type>
 void Sorts<Type>::selectionSort() {
+	assert(_arr);
+	_arr[0].clearStatistics();
+
 	int min_idx = 0;
 
 	for (int i = 0; i < _size - 1; ++i) {
@@ -92,15 +110,23 @@ void Sorts<Type>::selectionSort() {
 }
 
 template<typename Type>
-void Sorts<Type>::quickSort(int low, int high) {
+void Sorts<Type>::recQuickSort(int low, int high) {
 	assert(low >= 0);
 
 	if (low < high) {
 		int pi = partition(low, high);
 
-		quickSort(low, pi - 1);
-		quickSort(pi + 1, high);
+		recQuickSort(low, pi - 1);
+		recQuickSort(pi + 1, high);
 	}
+}
+
+template<typename Type>
+void Sorts<Type>::quickSort() {
+	assert(_arr);
+	_arr[0].clearStatistics();
+
+	recQuickSort(0, _size - 1);
 }
 
 template<typename Type>
@@ -120,6 +146,9 @@ int Sorts<Type>::partition(int low, int high) {
 
 template<typename Type>
 void Sorts<Type>::radixSort() {
+	assert(_arr);
+	_arr[0].clearStatistics();
+
 	Type m = getMax();
 
 	for (Type exp = 1; int(m / exp) > 0; exp *= 10) {
@@ -161,6 +190,9 @@ Type Sorts<Type>::getMax() {
 
 template<typename Type>
 void Sorts<Type>::bogoSort() {
+	assert(_arr);
+	_arr[0].clearStatistics();
+
 	while (!isSorted())
 		shuffle();
 }
@@ -187,7 +219,7 @@ int	Sorts<Type>::getNumberOfComparisons() {
 	for (int i = 0; i < _size; ++i)
 		numberOfComparisons += _arr[i].getNumberOfComparisons();
 
-	return numberOfComparisons / 2;
+	return numberOfComparisons;
 }
 
 template<typename Type>
@@ -198,6 +230,11 @@ int	Sorts<Type>::getNumberOfAssignments() {
 		numberOfAssignments += _arr[i].getNumberOfAssignments();
 
 	return numberOfAssignments;
+}
+
+template<typename Type>
+void Sorts<Type>::startSort(GRAPHICS id) {
+	_sortsVec[id](*this);
 }
 
 template<typename Type>

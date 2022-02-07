@@ -41,11 +41,7 @@ private:
 	void onCommand(WORD id);
 
 	void recalcSelected();
-	void recalcBubble();
-	void recalcSelection();
-	void recalcQuick();
-	void recalcRadix();
-	void recalcBogo();
+	void recalcSort(GRAPHICS id);
 
 	void createGUI();
 

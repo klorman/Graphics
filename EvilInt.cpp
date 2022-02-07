@@ -3,10 +3,11 @@
 #include <cassert>
 #include "EvilInt.h"
 
+int EvilInt::_numberOfAssignments = 0;
+int EvilInt::_numberOfComparisons = 0;
+
 EvilInt::EvilInt(int i /*= 0*/) :
-	_value               (i),
-	_numberOfComparisons (0),
-	_numberOfAssignments (-1)
+	_value(i)
 {}
 
 EvilInt& EvilInt::operator = (const EvilInt& right) {
@@ -113,42 +114,36 @@ const EvilInt operator || (const EvilInt& left, const EvilInt& right) {
 
 bool operator >  (EvilInt& left, EvilInt& right) {
 	++left._numberOfComparisons;
-	++right._numberOfComparisons;
 	
 	return left._value > right._value;
 }
 
 bool operator <  (EvilInt& left, EvilInt& right) {
 	++left._numberOfComparisons;
-	++right._numberOfComparisons;
 
 	return left._value < right._value;
 }
 
 bool operator >= (EvilInt& left, EvilInt& right) {
 	++left._numberOfComparisons;
-	++right._numberOfComparisons;
 
 	return left._value >= right._value;
 }
 
 bool operator <= (EvilInt& left, EvilInt& right) {
 	++left._numberOfComparisons;
-	++right._numberOfComparisons;
 
 	return left._value <= right._value;
 }
 
 bool operator == (EvilInt& left, EvilInt& right) {
 	++left._numberOfComparisons;
-	++right._numberOfComparisons;
 
 	return left._value == right._value;
 }
 
 bool operator != (EvilInt& left, EvilInt& right) {
 	++left._numberOfComparisons;
-	++right._numberOfComparisons;
 
 	return left._value != right._value;
 }
@@ -193,6 +188,11 @@ EvilInt& operator <<= (EvilInt& left, const EvilInt& right) {
 
 EvilInt& operator >>= (EvilInt& left, const EvilInt& right) {
 	return left = left >> right;
+}
+
+void EvilInt::clearStatistics() {
+	_numberOfAssignments = 0;
+	_numberOfComparisons = 0;
 }
 
 int EvilInt::getNumberOfAssignments() {
